@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -41,10 +40,11 @@ model User {
   name         String
   password     String
   avatarUrl    String?
-  role         Role     @default(TEAM_MEMBER)
+  role         Role     @default(MANAGER)
   isActive     Boolean  @default(true)
-  refreshToken String?
-  createdAt    DateTime @default(now())
+  refreshToken  String?
+  tokenVersion  Int      @default(0)
+  createdAt     DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   ownedBoards  Board[]       @relation("BoardOwner")
@@ -116,10 +116,10 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  column        Column          @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  assignee      User?           @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  column         Column          @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assignee       User?           @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   checklistItems ChecklistItem[]
-  tags          TaskTag[]
+  tags           TaskTag[]
 
   @@index([columnId])
   @@index([assigneeId])

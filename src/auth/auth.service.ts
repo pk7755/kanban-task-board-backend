@@ -58,10 +58,10 @@ export class AuthService {
         password: hashedPassword,
         avatarUrl: dto.avatarUrl ?? null,
       },
-      select: { id: true, email: true, name: true, role: true, avatarUrl: true, createdAt: true },
+      select: { id: true, email: true, name: true, role: true, avatarUrl: true, createdAt: true, tokenVersion: true },
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
     this.logger.log(`User registered: ${user.email}`);
     return { user, ...tokens };
   }
@@ -75,7 +75,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
     this.logger.log(`User logged in: ${user.email}`);
     return {
       user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, createdAt: user.createdAt },
@@ -101,12 +101,16 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token revoked or user not found');
     }
 
+    if (user.tokenVersion !== payload.tokenVersion) {
+      throw new UnauthorizedException('Token has been revoked. Please log in again');
+    }
+
     const isValid = await bcrypt.compare(refreshToken, user.refreshToken);
     if (!isValid) {
       throw new UnauthorizedException('Refresh token mismatch');
     }
 
-    return this.generateTokens(user.id, user.email, user.role);
+    return this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
   }
 
   async getMe(userId: string): Promise<{ id: string; email: string; name: string; role: Role; avatarUrl: string | null; createdAt: Date }> {
@@ -118,8 +122,19 @@ export class AuthService {
     return user;
   }
 
-  private async generateTokens(userId: string, email: string, role: Role): Promise<AuthTokens> {
-    const payload: JwtPayload = { sub: userId, email, role };
+  async logout(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken: null,
+        tokenVersion: { increment: 1 },
+      },
+    });
+    this.logger.log(`User logged out: ${userId}`);
+  }
+
+  private async generateTokens(userId: string, email: string, role: Role, tokenVersion: number): Promise<AuthTokens> {
+    const payload: JwtPayload = { sub: userId, email, role, tokenVersion };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {

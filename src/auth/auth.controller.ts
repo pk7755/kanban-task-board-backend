@@ -44,6 +44,22 @@ export class AuthController {
     return this.authService.getMe(user.sub);
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Logout current user',
+    description:
+      'Revokes the refresh token in the database. ' +
+      'The access token remains valid until it expires (up to 15 min). ' +
+      'Client should discard both tokens on receipt of this response.',
+  })
+  @ApiResponse({ status: 204, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  logout(@CurrentUser() user: JwtPayload) {
+    return this.authService.logout(user.sub);
+  }
+
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
