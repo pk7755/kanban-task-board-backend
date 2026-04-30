@@ -71,6 +71,15 @@ export class UsersController {
     return this.usersService.update(requester.sub, updateUserDto, requester.sub, requester.role);
   }
 
+  @Get('by-email')
+  @ApiOperation({ summary: 'Get a user by email (authenticated)' })
+  @ApiQuery({ name: 'email', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'User found', type: UserResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  findByEmail(@Query('email') email: string) {
+    return this.usersService.findByEmail(email);  
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a user by ID (authenticated)' })
   @ApiResponse({ status: 200, description: 'User found', type: UserResponseDto })

@@ -9,6 +9,7 @@ const prisma = new PrismaClient({ adapter });
 
 async function main(): Promise<void> {
   const managerEmail = process.env['SEED_MANAGER_EMAIL'] ?? 'manager@example.com';
+  const managerName = process.env['SEED_MANAGER_NAME'] ?? 'Default Manager';
   const managerPassword = process.env['SEED_MANAGER_PASSWORD'] ?? 'Manager@123';
   const memberPassword = 'Member@123';
 
@@ -21,7 +22,7 @@ async function main(): Promise<void> {
     update: {},
     create: {
       email: managerEmail,
-      name: 'Default Manager',
+      name: managerName,
       password: hashedManagerPassword,
       role: Role.MANAGER,
     },
@@ -29,10 +30,10 @@ async function main(): Promise<void> {
 
   // Upsert team member 1
   const member1 = await prisma.user.upsert({
-    where: { email: 'alice@example.com' },
+    where: { email: 'alice.johnson@kanban.com' },
     update: {},
     create: {
-      email: 'alice@example.com',
+      email: 'alice.johnson@kanban.com',
       name: 'Alice Johnson',
       password: hashedMemberPassword,
       role: Role.TEAM_MEMBER,
@@ -41,10 +42,10 @@ async function main(): Promise<void> {
 
   // Upsert team member 2
   const member2 = await prisma.user.upsert({
-    where: { email: 'bob@example.com' },
+    where: { email: 'bob.smith@kanban.com' },
     update: {},
     create: {
-      email: 'bob@example.com',
+      email: 'bob.smith@kanban.com',
       name: 'Bob Smith',
       password: hashedMemberPassword,
       role: Role.TEAM_MEMBER,

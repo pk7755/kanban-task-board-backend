@@ -11,6 +11,7 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { UsersModule } from './users/users.module.js';
+import { BoardsModule } from './boards/boards.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module.js';
     AuthModule,
     HealthModule,
     UsersModule,
+    BoardsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
