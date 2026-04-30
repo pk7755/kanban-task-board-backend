@@ -12,7 +12,10 @@ async function bootstrap(): Promise<void> {
 
   app.use(helmet());
 
-  const corsOrigins = configService.get<string>('CORS_ORIGINS', 'http://localhost:5173');
+  const corsOrigins = configService.get<string>(
+    'CORS_ORIGINS',
+    'http://localhost:5173',
+  );
   app.enableCors({
     origin: corsOrigins.split(',').map((o) => o.trim()),
     credentials: true,
@@ -40,6 +43,7 @@ async function bootstrap(): Promise<void> {
     .setVersion('1.0')
     .addBearerAuth()
     .addServer(`http://localhost:${configService.get<number>('PORT', 3000)}`)
+    .addServer(configService.get<string>('NGROK_URL') || '')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
