@@ -5,10 +5,7 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
   Query,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,7 +17,6 @@ import {
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
-import { UpdateRoleDto } from './dto/update-role.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';

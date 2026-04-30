@@ -9,7 +9,6 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
-import { UpdateRoleDto } from './dto/update-role.dto.js';
 import { UpdateTeamMemberDto } from './dto/update-team-member.dto.js';
 import { Role } from '../../generated/prisma/enums.js';
 
@@ -105,7 +104,7 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
+  findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email }, select: USER_SELECT });
   }
 
