@@ -229,7 +229,7 @@ The server starts at: `http://localhost:3000` (or the `PORT` in your `.env`)
 Interactive Swagger UI is available at:
 
 ```
-http://localhost:3000/api/docs
+https://blah-stallion-detail.ngrok-free.dev/api/docs
 ```
 
 All endpoints are documented with:
