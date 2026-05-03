@@ -15,6 +15,8 @@ import { BoardsModule } from './boards/boards.module.js';
 import { ColumnsModule } from './columns/columns.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { ChecklistModule } from './checklist/checklist.module.js';
+import { TagsModule } from './tags/tags.module.js';
+import { AuditModule } from './audit/audit.module.js';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { ChecklistModule } from './checklist/checklist.module.js';
     ColumnsModule,
     TasksModule,
     ChecklistModule,
+    TagsModule,
+    AuditModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

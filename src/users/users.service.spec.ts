@@ -16,6 +16,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AuditService } from '../audit/audit.service.js';
 import { Role } from '../../generated/prisma/enums.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -59,6 +60,8 @@ const mockPrisma = {
   $transaction: jest.fn(),
 };
 
+const mockAudit = { log: jest.fn() };
+
 // ── Suite ─────────────────────────────────────────────────────────────────────
 
 describe('UsersService', () => {
@@ -71,6 +74,7 @@ describe('UsersService', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    mockAudit.log.mockResolvedValue(undefined);
 
     mockPrisma.$transaction.mockImplementation((ops: any) =>
       Array.isArray(ops) ? Promise.all(ops) : ops(),
@@ -80,6 +84,7 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: AuditService, useValue: mockAudit },
       ],
     }).compile();
 
@@ -443,7 +448,7 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockMember);
       mockPrisma.user.update.mockResolvedValue(mockMember);
 
-      const result = await service.resetPassword(MEMBER_ID);
+      const result = await service.resetPassword(MEMBER_ID, MANAGER_ID);
 
       expect(result).toHaveProperty('tempPassword');
       expect(typeof result.tempPassword).toBe('string');
@@ -464,7 +469,7 @@ describe('UsersService', () => {
     it('❌ throws NotFoundException when user does not exist', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.resetPassword('bad-id')).rejects.toThrow(
+      await expect(service.resetPassword('bad-id', MANAGER_ID)).rejects.toThrow(
         NotFoundException,
       );
     });

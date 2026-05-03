@@ -7,10 +7,11 @@ import {
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AuditService } from '../audit/audit.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UpdateTeamMemberDto } from './dto/update-team-member.dto.js';
-import { Role } from '../../generated/prisma/enums.js';
+import { Role, AuditAction } from '../../generated/prisma/enums.js';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -37,12 +38,14 @@ interface FindTeamQuery {
   search?: string;
   role?: Role;
 }
-
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, createdById?: string) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -51,7 +54,7 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         name: dto.name,
@@ -61,43 +64,43 @@ export class UsersService {
       },
       select: USER_SELECT,
     });
+
+    if (createdById) {
+      await this.audit.log(
+        createdById,
+        AuditAction.USER_CREATED,
+        'User',
+        user.id,
+        {
+          email: user.email,
+          role: user.role,
+        },
+      );
+    }
+
+    return user;
   }
 
   async findAll(query: FindAllUsersQuery = {}) {
-    const page = Math.max(1, query.page ?? 1);
-    const limit = Math.min(100, Math.max(1, query.limit ?? 10));
-    const search = (query.search ?? '').trim();
-    const skip = (page - 1) * limit;
-
-    const where = search
+    const where = (query.search ?? '').trim()
       ? {
           OR: [
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { name: { contains: search, mode: 'insensitive' as const } },
+            {
+              email: {
+                contains: query.search!.trim(),
+                mode: 'insensitive' as const,
+              },
+            },
+            {
+              name: {
+                contains: query.search!.trim(),
+                mode: 'insensitive' as const,
+              },
+            },
           ],
         }
       : {};
-
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        select: USER_SELECT,
-      }),
-      this.prisma.user.count({ where }),
-    ]);
-
-    return {
-      data,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return this.paginateUsers(where, query);
   }
 
   async findOne(id: string) {
@@ -144,27 +147,25 @@ export class UsersService {
     });
   }
 
-  // ── Team management (MANAGER only) ──────────────────────────────────────────
-
   async findTeam(query: FindTeamQuery = {}) {
-    const page = Math.max(1, query.page ?? 1);
-    const limit = Math.min(100, Math.max(1, query.limit ?? 10));
-    const search = (query.search ?? '').trim();
-    const skip = (page - 1) * limit;
-
     const where: Record<string, unknown> = {};
-
-    if (query.role) {
-      where['role'] = query.role;
-    }
-
-    if (search) {
+    if (query.role) where['role'] = query.role;
+    if ((query.search ?? '').trim()) {
       where['OR'] = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: query.search!.trim(), mode: 'insensitive' } },
+        { name: { contains: query.search!.trim(), mode: 'insensitive' } },
       ];
     }
+    return this.paginateUsers(where, query);
+  }
 
+  private async paginateUsers(
+    where: Record<string, unknown>,
+    query: { page?: number; limit?: number },
+  ) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 10));
+    const skip = (page - 1) * limit;
     const [data, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
@@ -175,7 +176,6 @@ export class UsersService {
       }),
       this.prisma.user.count({ where }),
     ]);
-
     return {
       data,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -187,19 +187,24 @@ export class UsersService {
     dto: UpdateTeamMemberDto,
     managerId: string,
   ) {
-    await this.findOne(id);
-
+    const existing = await this.findOne(id);
     if (id === managerId && dto.role !== undefined) {
       throw new ForbiddenException(
         'You cannot change your own role through this endpoint',
       );
     }
-
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: dto,
       select: USER_SELECT,
     });
+    if (dto.role !== undefined && dto.role !== existing.role) {
+      await this.audit.log(managerId, AuditAction.ROLE_CHANGED, 'User', id, {
+        from: existing.role,
+        to: dto.role,
+      });
+    }
+    return updated;
   }
 
   async removeTeamMember(id: string, managerId: string) {
@@ -211,23 +216,32 @@ export class UsersService {
       );
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { isActive: false },
       select: USER_SELECT,
     });
+
+    await this.audit.log(managerId, AuditAction.USER_DEACTIVATED, 'User', id);
+
+    return updated;
   }
 
-  async resetPassword(id: string): Promise<{ tempPassword: string }> {
+  async resetPassword(
+    id: string,
+    managerId: string,
+  ): Promise<{ tempPassword: string }> {
     await this.findOne(id);
 
-    const tempPassword = randomBytes(8).toString('hex'); // 16-char hex string
+    const tempPassword = randomBytes(8).toString('hex');
     const hashed = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
 
     await this.prisma.user.update({
       where: { id },
       data: { password: hashed, refreshToken: null },
     });
+
+    await this.audit.log(managerId, AuditAction.PASSWORD_RESET, 'User', id);
 
     return { tempPassword };
   }

@@ -18,6 +18,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { TasksService } from './tasks.service.js';
+import { TasksQueryService } from './tasks-query.service.js';
 import { CreateTaskDto } from './dto/create-task.dto.js';
 import { UpdateTaskDto } from './dto/update-task.dto.js';
 import { MoveTaskDto } from './dto/move-task.dto.js';
@@ -29,7 +30,10 @@ import { Priority } from '../../generated/prisma/enums.js';
 @ApiBearerAuth()
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly tasksQueryService: TasksQueryService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List tasks with filters and pagination' })
@@ -60,7 +64,7 @@ export class TasksController {
     @Query('limit') limit?: string,
     @Query('sort') sort?: string,
   ) {
-    return this.tasksService.findAll(user.sub, {
+    return this.tasksQueryService.findAll(user.sub, {
       boardId,
       columnId,
       priority,
@@ -82,14 +86,14 @@ export class TasksController {
   @ApiResponse({ status: 403, description: 'Not a board member' })
   @ApiResponse({ status: 404, description: 'Column not found' })
   create(@Body() dto: CreateTaskDto, @CurrentUser() user: JwtPayload) {
-    return this.tasksService.create(dto, user.sub);
+    return this.tasksService.create(dto, user.sub, user.role);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a task by ID' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.tasksService.findOne(id, user.sub);
+    return this.tasksQueryService.findOne(id, user.sub);
   }
 
   @Patch(':id')
@@ -101,7 +105,7 @@ export class TasksController {
     @Body() dto: UpdateTaskDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.tasksService.update(id, dto, user.sub);
+    return this.tasksService.update(id, dto, user.sub, user.role);
   }
 
   @Delete(':id')
@@ -109,9 +113,12 @@ export class TasksController {
   @ApiOperation({ summary: 'Delete a task' })
   @ApiResponse({ status: 200, description: 'Task deleted' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  @ApiResponse({ status: 403, description: 'Not a board member' })
+  @ApiResponse({
+    status: 403,
+    description: 'Not a board member or not assignee',
+  })
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.tasksService.remove(id, user.sub);
+    return this.tasksService.remove(id, user.sub, user.role);
   }
 
   @Patch(':id/move')
@@ -129,7 +136,7 @@ export class TasksController {
     @Body() dto: MoveTaskDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.tasksService.move(id, dto, user.sub);
+    return this.tasksService.move(id, dto, user.sub, user.role);
   }
 
   @Post(':id/archive')
@@ -138,7 +145,7 @@ export class TasksController {
   @ApiResponse({ status: 200, description: 'Task archived' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   archive(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.tasksService.archive(id, user.sub);
+    return this.tasksService.archive(id, user.sub, user.role);
   }
 
   @Post(':id/unarchive')
@@ -147,6 +154,6 @@ export class TasksController {
   @ApiResponse({ status: 200, description: 'Task unarchived' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   unarchive(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.tasksService.unarchive(id, user.sub);
+    return this.tasksService.unarchive(id, user.sub, user.role);
   }
 }
