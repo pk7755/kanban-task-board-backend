@@ -141,34 +141,81 @@ docs/
 
 ## 🏗 Architecture
 
-```text
-AppModule
-├── AuthModule ──────────────→ PrismaModule, JwtModule
-├── UsersModule ─────────────→ PrismaModule, AuditModule
-├── BoardsModule ────────────→ PrismaModule
-├── ColumnsModule ───────────→ PrismaModule
-├── TasksModule ─────────────→ PrismaModule, AuditModule
-│   └── TasksQueryService (read ops split from TasksService)
-├── ChecklistModule ─────────→ PrismaModule
-├── TagsModule ──────────────→ PrismaModule
-├── AuditModule ─────────────→ PrismaModule  (exports AuditService)
-├── HealthModule
-└── PrismaModule (global)
+### Module Dependency Graph
 
-Common (applied globally in AppModule):
-  ThrottlerGuard
-  JwtAuthGuard → all routes (opt-out via @Public())
-  RolesGuard   → opt-in via @Roles(Role.MANAGER)
-  GlobalExceptionFilter
-  LoggingInterceptor   (logs requests > 500ms)
-  TransformInterceptor (wraps all responses in { data, statusCode, timestamp })
+```mermaid
+flowchart TB
+    classDef module fill:#1e3a5f,stroke:#4a9eff,color:#e8f4fd,rx:6
+    classDef shared fill:#1a3a2a,stroke:#4ade80,color:#d1fae5,rx:6
+    classDef db fill:#3b1f5e,stroke:#a78bfa,color:#ede9fe,rx:6
+    classDef app fill:#3b2a00,stroke:#fbbf24,color:#fef3c7,rx:6
+
+    APP(["⚙️ AppModule"]):::app
+
+    APP --> AUTH["🔐 AuthModule\nlogin · register · refresh · logout"]:::module
+    APP --> USERS["👥 UsersModule\nprofile · team management"]:::module
+    APP --> BOARDS["🧱 BoardsModule\nboard CRUD · members"]:::module
+    APP --> COLUMNS["📋 ColumnsModule\nCRUD · bulk reorder"]:::module
+    APP --> TASKS["✅ TasksModule\nCRUD · move · archive · query\n└─ TasksQueryService"]:::module
+    APP --> CHECKLIST["☑️ ChecklistModule\nitem CRUD per task"]:::module
+    APP --> TAGS["🏷️ TagsModule\nboard-scoped tags"]:::module
+    APP --> AUDIT["📊 AuditModule\nevent logs · exports AuditService"]:::shared
+    APP --> HEALTH["💚 HealthModule\n/health"]:::module
+
+    PRISMA[("🗄️ PrismaModule\nGlobal · PostgreSQL 16")]:::db
+
+    AUTH & USERS & BOARDS & COLUMNS & TASKS & CHECKLIST & TAGS & AUDIT --> PRISMA
+
+    TASKS -->|writes events| AUDIT
+    USERS -->|writes events| AUDIT
 ```
 
-**Request flow**
-- `main.ts` configures Helmet, CORS, validation pipes, Swagger, and the `/api/v1` prefix.
-- Controllers stay thin and delegate to services.
-- Prisma powers all database access.
-- `AuditService` is reused by user and task workflows.
+---
+
+### Request Lifecycle
+
+```mermaid
+flowchart TD
+    classDef security fill:#4a1942,stroke:#f472b6,color:#fce7f3
+    classDef route fill:#1e3a5f,stroke:#4a9eff,color:#e8f4fd
+    classDef data fill:#3b1f5e,stroke:#a78bfa,color:#ede9fe
+    classDef response fill:#1a3a2a,stroke:#4ade80,color:#d1fae5
+    classDef error fill:#450a0a,stroke:#f87171,color:#fee2e2
+
+    REQ(["🌐 Incoming HTTP Request\nPOST /api/v1/..."])
+
+    REQ --> H["🛡️ Helmet\nsecurity headers"]:::security
+    H  --> T["⏱️ ThrottlerGuard\nrate limiting"]:::security
+    T  --> PUB{{"@Public() route?"}}
+
+    PUB -->|"✅ Yes"| CTRL
+    PUB -->|"🔒 No"| JWT["🔐 JwtAuthGuard\nverify Bearer token"]:::security
+
+    JWT -->|"❌ Invalid / Missing"| ERR["GlobalExceptionFilter\n401 Unauthorized"]:::error
+    JWT -->|"✅ Valid"| ROLE{{"@Roles(MANAGER)?"}}
+
+    ROLE -->|"❌ TEAM_MEMBER"| ERR2["GlobalExceptionFilter\n403 Forbidden"]:::error
+    ROLE -->|"✅ Authorised"| CTRL
+
+    CTRL["🎯 Controller\nthin — delegates to service"]:::route
+    CTRL --> LOG["📝 LoggingInterceptor\nlogs requests > 500ms"]:::route
+    LOG  --> SVC["⚙️ Service\nbusiness logic"]:::route
+    SVC  --> PRISMA["🗄️ PrismaService"]:::data
+    PRISMA --> DB[("PostgreSQL 16")]:::data
+
+    DB --> PRISMA --> SVC --> CTRL
+    CTRL --> WRAP["📦 TransformInterceptor\nwraps response"]:::response
+    WRAP --> RES(["✅ HTTP Response\n{ data, statusCode, timestamp }"]):::response
+
+    ERR  --> ERES(["❌ Error Response\n{ statusCode, message, path }"]):::error
+    ERR2 --> ERES
+```
+
+**Key design notes**
+- `main.ts` configures Helmet, CORS, global validation pipes, Swagger, and the `/api/v1` prefix.
+- Controllers stay thin and delegate all logic to services.
+- Prisma is a global module — injected everywhere via `PrismaService`.
+- `AuditService` is exported from `AuditModule` and reused by `UsersModule` and `TasksModule`.
 
 ---
 
