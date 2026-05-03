@@ -5,6 +5,12 @@ on:
     branches:
       - master
 
+# Required for dorny/test-reporter to post check results on PRs
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   lint:
     name: Lint Check
@@ -80,6 +86,7 @@ jobs:
           path: 'test-results/junit-unit.xml'
           reporter: jest-junit
           fail-on-error: false
+          fail-on-empty: false
 
       - name: Upload coverage report
         if: always()
@@ -120,4 +127,5 @@ jobs:
           path: 'test-results/junit-e2e.xml'
           reporter: jest-junit
           fail-on-error: false
+          fail-on-empty: false
 
