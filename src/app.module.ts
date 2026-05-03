@@ -12,6 +12,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { UsersModule } from './users/users.module.js';
 import { BoardsModule } from './boards/boards.module.js';
+import { ColumnsModule } from './columns/columns.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { BoardsModule } from './boards/boards.module.js';
     HealthModule,
     UsersModule,
     BoardsModule,
+    ColumnsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
