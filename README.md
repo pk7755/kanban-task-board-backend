@@ -19,20 +19,30 @@
 
 ---
 
+> **Base URL:** `http://localhost:3000/api/v1`  
+> **Swagger:** `http://localhost:3000/api/docs`  
+> **Repository:** `https://github.com/pk7755/kanban-task-board-backend`
+
 ## 📋 Table of Contents
 
 - [Description](#-description)
 - [Tech Stack](#-tech-stack)
 - [Features](#-features)
 - [Project Structure](#-project-structure)
+- [Architecture](#-architecture)
 - [Getting Started](#-getting-started)
 - [Environment Variables](#-environment-variables)
 - [Database Setup](#-database-setup)
+- [Default Login](#-default-login)
 - [Running the Project](#-running-the-project)
 - [API Documentation](#-api-documentation)
 - [Authentication Flow](#-authentication-flow)
+- [Response Format](#-response-format)
+- [RBAC Rules](#-rbac-rules)
 - [API Endpoints](#-api-endpoints)
+- [Testing](#-testing)
 - [NPM Scripts](#-npm-scripts)
+- [ngrok / Sharing](#-ngrok--sharing)
 - [Deployment](#-deployment)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -42,6 +52,12 @@
 ## 📖 Description
 
 **Kanban Task Board API** is a production-ready backend service built with **NestJS** and **TypeScript**. It powers a Kanban-style project management tool where managers can create boards, organise work into columns, assign tasks to team members, and track progress — all secured behind JWT authentication and role-based access control.
+
+All API routes are prefixed with **`/api/v1`**, so the local API base URL is:
+
+```text
+http://localhost:3000/api/v1
+```
 
 ---
 
@@ -63,51 +79,96 @@
 
 ## ✨ Features
 
-- 🔐 **JWT Authentication** — Access token (15 min) + Refresh token (7 days) with token rotation
-- 👥 **Role-based Access Control** — `MANAGER` and `TEAM_MEMBER` roles with route-level guards
-- 📋 **Boards** — Create boards, manage members, eager-load columns & tasks
-- 📌 **Columns** — Ordered columns per board with position management
-- ✅ **Tasks** — Full task lifecycle: priority, due date, assignee, archived flag, checklist items, tags
-- 🏷 **Tags** — Board-scoped tags assignable to tasks
-- 📊 **Audit Logs** — Track all critical actions (user changes, ticket events, board events)
-- 🛡 **Security** — Helmet headers, CORS whitelist, global rate limiting, bcrypt password hashing
-- 📄 **Swagger UI** — Interactive API docs at `/api/docs`
+- 🔐 **Authentication** — JWT access token (15 min) + refresh token (7 days)
+- 👥 **Roles** — `MANAGER` and `TEAM_MEMBER`
+- 🧱 **Boards & Columns** — Board CRUD, membership management, ordered columns, bulk column reorder
+- ✅ **Tasks** — CRUD, filtering, move between columns, archive/unarchive, assignees, tags, due dates, priorities
+- ☑️ **Checklist** — Task checklist item CRUD
+- 🏷 **Tags** — Board-scoped tag management
+- 📊 **Audit Logs** — Manager-only audit log access plus internal write support from user/task workflows
+- 🛡 **Global App Security** — Helmet, CORS whitelist, throttling, global JWT guard, roles guard
+- 📦 **Standard Responses** — Success responses wrapped in `{ data, statusCode, timestamp }`
+- 📄 **Swagger UI** — Interactive docs at `http://localhost:3000/api/docs`
+- 🧪 **Test Coverage** — Unit and e2e suites with mocked Prisma e2e coverage
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 src/
-├── auth/                   # JWT auth — login, register, refresh, logout
-│   ├── dto/
-│   ├── guards/             # JwtAuthGuard
-│   ├── interfaces/         # JwtPayload interface
-│   └── strategies/         # Passport JWT strategy
-│
-├── users/                  # User profile + team management (MANAGER only)
-│   └── dto/
-│
-├── boards/                 # Board CRUD + member management
-│   └── dto/
-│
-├── common/                 # Shared cross-cutting concerns
-│   ├── decorators/         # @CurrentUser, @Roles, @Public
-│   ├── filters/            # Global HTTP exception filter
-│   ├── guards/             # RolesGuard
-│   ├── interceptors/       # Logging, response transform
-│   └── pipes/
-│
-├── prisma/                 # PrismaService (global module)
-├── health/                 # Health check endpoint
 ├── app.module.ts
-└── main.ts
+├── main.ts
+├── auth/           # JWT auth — login, register, refresh, logout
+│   ├── dto/
+│   ├── guards/     # JwtAuthGuard
+│   ├── interfaces/ # JwtPayload
+│   └── strategies/ # Passport JWT strategy
+├── users/          # User profile + team management (MANAGER only)
+│   └── dto/
+├── boards/         # Board CRUD + member management
+│   └── dto/
+├── columns/        # Column CRUD + bulk reorder
+│   └── dto/
+├── tasks/          # Task CRUD + move + archive + query
+│   └── dto/
+├── checklist/      # Checklist items per task
+│   └── dto/
+├── tags/           # Board-scoped tags
+│   └── dto/
+├── audit/          # Audit log — read and write
+│   └── dto/
+├── health/         # Health check endpoint
+├── prisma/         # PrismaService (global module)
+└── common/
+    ├── decorators/   # @CurrentUser, @Roles, @Public
+    ├── filters/      # Global HTTP exception filter
+    ├── guards/       # RolesGuard
+    ├── interceptors/ # Logging, response transform
+    └── pipes/        # ParseDateRangePipe
 
 prisma/
-├── schema.prisma           # Database schema
-├── migrations/             # Prisma migration history
-└── seed.ts                 # Database seeder
+├── schema.prisma
+├── migrations/
+└── seed.ts
+
+test/               # E2E tests (9 suites, 169 tests)
+docs/
+└── postman_collection.json
 ```
+
+---
+
+## 🏗 Architecture
+
+```text
+AppModule
+├── AuthModule ──────────────→ PrismaModule, JwtModule
+├── UsersModule ─────────────→ PrismaModule, AuditModule
+├── BoardsModule ────────────→ PrismaModule
+├── ColumnsModule ───────────→ PrismaModule
+├── TasksModule ─────────────→ PrismaModule, AuditModule
+│   └── TasksQueryService (read ops split from TasksService)
+├── ChecklistModule ─────────→ PrismaModule
+├── TagsModule ──────────────→ PrismaModule
+├── AuditModule ─────────────→ PrismaModule  (exports AuditService)
+├── HealthModule
+└── PrismaModule (global)
+
+Common (applied globally in AppModule):
+  ThrottlerGuard
+  JwtAuthGuard → all routes (opt-out via @Public())
+  RolesGuard   → opt-in via @Roles(Role.MANAGER)
+  GlobalExceptionFilter
+  LoggingInterceptor   (logs requests > 500ms)
+  TransformInterceptor (wraps all responses in { data, statusCode, timestamp })
+```
+
+**Request flow**
+- `main.ts` configures Helmet, CORS, validation pipes, Swagger, and the `/api/v1` prefix.
+- Controllers stay thin and delegate to services.
+- Prisma powers all database access.
+- `AuditService` is reused by user and task workflows.
 
 ---
 
@@ -118,14 +179,14 @@ prisma/
 - Node.js `>= 22.x`
 - npm `>= 10.x`
 - PostgreSQL `>= 16`
-- Docker (optional, for DB via Docker Compose)
+- Docker (optional, for PostgreSQL via Docker Compose)
 
 ### Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/pk7755/kanban-task-board-backend.git
-cd kanban-task-board-api
+cd kanban-task-board-backend
 
 # Install dependencies
 npm install
@@ -135,139 +196,76 @@ npm install
 
 ## 🔧 Environment Variables
 
-Copy `.env.example` to `.env` and fill in the values:
+Copy `.env.example` to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-```env
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kanban
+| Variable | Description | Example / Default |
+|----------|-------------|-------------------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/kanban` |
+| `JWT_SECRET` | Access token signing secret | `your-super-secret-jwt-key-here` |
+| `JWT_REFRESH_SECRET` | Refresh token signing secret | `your-super-secret-refresh-key-here` |
+| `JWT_ACCESS_EXPIRES_IN` | Access token lifetime | `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifetime | `7d` |
+| `PORT` | API port | `3000` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:5173,http://localhost:3001` |
+| `SEED_MANAGER_EMAIL` | Seeded manager email | `manager@example.com` |
+| `SEED_MANAGER_NAME` | Seeded manager display name | `Default Manager` |
+| `SEED_MANAGER_PASSWORD` | Seeded manager password | `Manager@123` |
+| `NODE_ENV` | Runtime environment | `development` |
+| `NGROK_URL` | Public ngrok URL for shared frontend testing | `https://your-ngrok-url.ngrok-free.app` |
 
-# JWT
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kanban
 JWT_SECRET=your-super-secret-jwt-key-here
 JWT_REFRESH_SECRET=your-super-secret-refresh-key-here
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
-
-# Server
 PORT=3000
-NODE_ENV=development
-
-# CORS — comma-separated allowed origins
 CORS_ORIGINS=http://localhost:5173,http://localhost:3001
+SEED_MANAGER_EMAIL=manager@example.com
+SEED_MANAGER_NAME=Default Manager
+SEED_MANAGER_PASSWORD=Manager@123
+NODE_ENV=development
+NGROK_URL=https://your-ngrok-url.ngrok-free.app
 ```
 
-> ⚠️ Never commit your `.env` file. It is already listed in `.gitignore`.
+> ⚠️ Never commit your real `.env` file.
 
 ---
 
 ## 🗄 Database Setup
 
-### Option 1 — Docker Compose (Recommended)
+### Option 1 — Docker Compose
 
 ```bash
-# Start PostgreSQL in a container
 docker-compose up -d
 ```
 
 ### Option 2 — Local PostgreSQL
 
-Create a database manually:
-
 ```sql
 CREATE DATABASE kanban;
 ```
 
-### Run Migrations
+### Run Prisma
 
 ```bash
-# Apply all pending migrations
 npm run prisma:migrate
-
-# Generate Prisma client after schema changes
 npm run prisma:generate
 ```
 
 ### Seed the Database
 
-Creates an initial **Manager** account using the credentials in your `.env`:
+The seed creates the default manager account automatically using the `SEED_MANAGER_*` variables.
 
 ```bash
 npm run seed
 ```
 
----
-
-## 🔑 Default Login
-
-After seeding, a manager account is ready immediately:
-
-| Field    | Value                   |
-|----------|-------------------------|
-| Email    | `manager@example.com`   |
-| Password | `Manager@123`           |
-| Role     | `MANAGER`               |
-
-> Override with `SEED_MANAGER_EMAIL` and `SEED_MANAGER_PASSWORD` in `.env` before seeding.
-
-A second team member is also seeded:
-
-| Field    | Value                  |
-|----------|------------------------|
-| Email    | `member1@example.com`  |
-| Password | `Member@123`           |
-| Role     | `TEAM_MEMBER`          |
-
----
-
-## 🏗 Architecture
-
-```
-                          HTTP Requests
-                               │
-                          ┌────▼────┐
-                          │  main   │  Helmet · CORS · Throttler · Prefix /api/v1
-                          └────┬────┘
-                               │
-                     ┌─────────▼─────────┐
-                     │     AppModule      │  Global: JwtAuthGuard · RolesGuard
-                     │                   │         LoggingInterceptor · TransformInterceptor
-                     │                   │         GlobalExceptionFilter
-                     └──┬────────────────┘
-                        │  imports
-          ┌─────────────┼─────────────────────────────────────────┐
-          │             │             │              │             │
-     ┌────▼───┐  ┌──────▼────┐ ┌─────▼────┐ ┌──────▼───┐ ┌──────▼────┐
-     │  Auth  │  │  Users    │ │  Boards  │ │ Columns  │ │   Tasks   │
-     │ Module │  │  Module   │ │  Module  │ │  Module  │ │  Module   │
-     └────────┘  └──────┬────┘ └──────────┘ └──────────┘ └────┬──────┘
-                        │                                       │
-                   ┌────▼──────────────────────────────────────▼────┐
-                   │               AuditModule                       │
-                   │   AuditService.log() ← called from UsersService │
-                   │                      ← called from TasksService │
-                   │   GET /audit-logs (MANAGER only, paginated)     │
-                   └────────────────────────────────────────────────┘
-          │             │
-     ┌────▼──────┐ ┌────▼────┐
-     │ Checklist │ │  Tags   │
-     │  Module   │ │ Module  │
-     └───────────┘ └─────────┘
-          │             │             │
-     ┌────▼─────────────▼─────────────▼────┐
-     │            PrismaModule              │
-     │   PrismaService → PostgreSQL DB      │
-     └──────────────────────────────────────┘
-
-Module → Service → PrismaService (all DB calls)
-Controller → Service only (no business logic in controllers)
-Guards: JwtAuthGuard (global) · RolesGuard (global, opt-in via @Roles())
-Public routes opt out via @Public() decorator
-```
-
----
+You can also inspect data locally with:
 
 ```bash
 npm run prisma:studio
@@ -275,125 +273,231 @@ npm run prisma:studio
 
 ---
 
+## 🔑 Default Login
+
+After seeding, the default login is:
+
+| Field | Value |
+|-------|-------|
+| Email | `manager@example.com` (or `SEED_MANAGER_EMAIL`) |
+| Password | `Manager@123` (or `SEED_MANAGER_PASSWORD`) |
+| Role | `MANAGER` |
+
+---
+
 ## ▶️ Running the Project
 
 ```bash
-# Development (watch mode)
+# Development
 npm run start:dev
 
-# Debug mode
+# Debug
 npm run start:debug
 
-# Production build + run
+# Production
 npm run build
 npm run start:prod
 ```
 
-The server starts at: `http://localhost:3000` (or the `PORT` in your `.env`)
+Local URLs:
+- API root: `http://localhost:3000/api/v1`
+- Swagger UI: `http://localhost:3000/api/docs`
 
 ---
 
 ## 📄 API Documentation
 
-Interactive Swagger UI is available at:
+Swagger is available at:
 
-```
-https://blah-stallion-detail.ngrok-free.dev/api/docs
+```text
+http://localhost:3000/api/docs
 ```
 
-All endpoints are documented with:
-- Request body schemas (validated DTOs)
-- Response examples
-- Bearer token auth requirement
-- Role requirements per endpoint
+Notes:
+- All API routes are prefixed with **`/api/v1`**.
+- Swagger documents request DTOs, auth requirements, and endpoint groups.
+- A Postman collection is included at `docs/postman_collection.json`.
 
 ---
 
 ## 🔐 Authentication Flow
 
-```
-1. POST /auth/register  →  Create account, receive { accessToken, refreshToken, user }
-2. POST /auth/login     →  Receive { accessToken, refreshToken, user }
-
-3. All protected requests:
+```text
+1. POST /api/v1/auth/register → Public
+2. POST /api/v1/auth/login    → Public
+3. Use access token on protected routes:
    Authorization: Bearer <accessToken>
-
-4. POST /auth/refresh   →  Send { refreshToken } → receive new token pair
-
-5. POST /auth/logout    →  Invalidates refresh token in DB
-                           Client should discard both tokens
+4. POST /api/v1/auth/refresh  → Public, returns a fresh token pair
+5. POST /api/v1/auth/logout   → JWT required, invalidates current refresh token
 ```
 
-**Token details:**
-- `accessToken` — short-lived (15 min), stateless JWT
-- `refreshToken` — long-lived (7 days), stored hashed in DB, rotated on each refresh
-- Token version field prevents replay attacks after password reset
+**Token lifetimes**
+- `accessToken`: `15m`
+- `refreshToken`: `7d`
+
+---
+
+## 📦 Response Format
+
+Every successful response is wrapped as:
+
+```json
+{
+  "data": { "id": "..." },
+  "statusCode": 200,
+  "timestamp": "2026-05-04T00:00:00.000Z"
+}
+```
+
+Errors return:
+
+```json
+{
+  "statusCode": 404,
+  "message": "Task not found",
+  "error": "Not Found",
+  "timestamp": "2026-05-04T00:00:00.000Z",
+  "path": "/api/v1/tasks/xyz"
+}
+```
+
+---
+
+## 🛂 RBAC Rules
+
+### Roles
+- `MANAGER`
+- `TEAM_MEMBER`
+
+### Task-specific rules
+- `TEAM_MEMBER` creating a task → `assigneeId` is forced to their own user ID.
+- `TEAM_MEMBER` editing, deleting, moving, archiving, or unarchiving a task they do not own → `403 Forbidden`.
+- `TEAM_MEMBER` sending `assigneeId` in `PATCH /tasks/:id` to reassign a task → `403 Forbidden`.
+- `MANAGER` can manage all tasks on boards they own or belong to.
+
+### Other access rules
+- `@Public()` routes opt out of the global JWT guard.
+- `@Roles(Role.MANAGER)` is used for manager-only endpoints such as team management and audit logs.
+- Board detail requires board membership.
+- Board updates/member management require board ownership.
+- Column mutations are currently enforced as **board-owner only** in the service layer.
 
 ---
 
 ## 🗺 API Endpoints
 
+> All endpoints below are relative to **`/api/v1`**.
+
 ### Auth
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/auth/register` | Public | Register new user |
-| `POST` | `/auth/login` | Public | Login, receive JWT tokens |
-| `GET` | `/auth/me` | ✅ JWT | Get current user profile |
-| `POST` | `/auth/refresh` | Public | Refresh access token |
-| `POST` | `/auth/logout` | ✅ JWT | Logout and revoke refresh token |
+| `POST` | `/auth/register` | Public | Register a new user |
+| `POST` | `/auth/login` | Public | Login and receive access/refresh tokens |
+| `GET` | `/auth/me` | JWT | Get the current authenticated user |
+| `POST` | `/auth/refresh` | Public | Exchange refresh token for a new token pair |
+| `POST` | `/auth/logout` | JWT | Logout and invalidate current refresh token |
 
 ### Users
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/users` | ✅ JWT | List users (search, paginate) |
-| `GET` | `/users/:id` | ✅ JWT | Get user by ID |
-| `PATCH` | `/users/me` | ✅ JWT | Update own profile |
+| `GET` | `/users` | JWT | List users with `?search=&page=&limit=` |
+| `GET` | `/users/:id` | JWT | Get a user by ID |
+| `PATCH` | `/users/me` | JWT | Update the current user's profile |
 
-### Team Management *(MANAGER only)*
+### Team Management (`MANAGER` only)
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/users/team` | MANAGER | List team members |
-| `POST` | `/users/team` | MANAGER | Create team member |
-| `PATCH` | `/users/team/:id` | MANAGER | Update role / status |
-| `DELETE` | `/users/team/:id` | MANAGER | Soft-deactivate member |
-| `POST` | `/users/team/:id/reset-password` | MANAGER | Reset member password |
+| `GET` | `/users/team` | MANAGER | List team members with `?search=&role=&page=&limit=` |
+| `POST` | `/users/team` | MANAGER | Create a member with `{ email, name, password, role }` |
+| `PATCH` | `/users/team/:id` | MANAGER | Update `name`, `role`, or `isActive` |
+| `DELETE` | `/users/team/:id` | MANAGER | Soft-deactivate a member (`isActive=false`) |
+| `POST` | `/users/team/:id/reset-password` | MANAGER | Reset password and return `{ tempPassword }` once |
 
 ### Boards
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/boards` | ✅ JWT | List boards (owned + member) |
-| `POST` | `/boards` | ✅ JWT | Create board |
-| `GET` | `/boards/:id` | Member | Board detail with columns & tasks |
-| `PATCH` | `/boards/:id` | Owner | Rename board |
-| `DELETE` | `/boards/:id` | Owner | Delete board (cascade) |
-| `POST` | `/boards/:id/members` | Owner | Add member by email |
-| `DELETE` | `/boards/:id/members/:userId` | Owner | Remove member |
+| `GET` | `/boards` | JWT | List boards the user owns or belongs to |
+| `POST` | `/boards` | JWT | Create a board |
+| `GET` | `/boards/:id` | Member | Get a board with columns and tasks |
+| `PATCH` | `/boards/:id` | Owner | Rename a board |
+| `DELETE` | `/boards/:id` | Owner | Delete a board and cascade related data |
+| `POST` | `/boards/:id/members` | Owner | Add a board member by email |
+| `DELETE` | `/boards/:id/members/:userId` | Owner | Remove a board member |
 
-### Sample Request — Create Board
+### Columns
 
-```http
-POST /boards
-Authorization: Bearer <accessToken>
-Content-Type: application/json
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/columns` | Owner | Create a column in a board with `{ name, boardId, position?, color? }` |
+| `PATCH` | `/columns/:id` | Owner | Update column `name`, `color`, or `position` |
+| `DELETE` | `/columns/:id` | Owner | Delete a column and its tasks |
+| `PATCH` | `/columns/reorder` | Owner | Bulk reorder columns with `[{ id, position }]` |
 
-{
-  "name": "Sprint 1"
-}
+### Tasks
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/tasks` | JWT | Query tasks with `?boardId&columnId&priority&assigneeId&tagIds&search&dueBefore&dueAfter&overdue&page&limit&sort` |
+| `POST` | `/tasks` | JWT | Create a task; `TEAM_MEMBER` assignee is forced to self |
+| `GET` | `/tasks/:id` | JWT | Get a task by ID |
+| `PATCH` | `/tasks/:id` | JWT | Update a task; `TEAM_MEMBER` cannot reassign |
+| `DELETE` | `/tasks/:id` | JWT | Delete a task; `TEAM_MEMBER` only for own tasks |
+| `PATCH` | `/tasks/:id/move` | JWT | Move task with `{ columnId, position }`; sibling positions update in a transaction |
+| `POST` | `/tasks/:id/archive` | JWT | Set `archived=true` |
+| `POST` | `/tasks/:id/unarchive` | JWT | Set `archived=false` |
+
+### Checklist
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/tasks/:taskId/checklist` | JWT | Add a checklist item with `{ text, position? }` |
+| `PATCH` | `/checklist/:id` | JWT | Update `{ text?, done?, position? }` |
+| `DELETE` | `/checklist/:id` | JWT | Delete a checklist item |
+
+### Tags
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/boards/:id/tags` | Member | List board tags |
+| `POST` | `/boards/:id/tags` | Member | Create a tag with `{ name, color }` |
+| `PATCH` | `/tags/:id` | Member | Update `{ name?, color? }` |
+| `DELETE` | `/tags/:id` | Member | Delete a tag |
+
+### Audit Logs (`MANAGER` only)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/audit-logs` | MANAGER | List paginated audit events with `?page=&limit=` |
+
+### Health
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/health` | Public | Return `{ status, db, uptime }` |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm test
+
+# E2E tests
+npm run test:e2e
+
+# Coverage
+npm run test:cov
 ```
 
-```json
-{
-  "id": "uuid",
-  "name": "Sprint 1",
-  "ownerId": "uuid",
-  "memberCount": 1,
-  "createdAt": "2026-04-30T07:00:00.000Z"
-}
-```
+Current test status:
+- `npm test` → **154 tests**, **8 suites**
+- `npm run test:e2e` → **169 tests**, **9 suites**
+- E2E tests use mocked Prisma, so they do **not** require a live database
 
 ---
 
@@ -401,18 +505,42 @@ Content-Type: application/json
 
 | Script | Description |
 |--------|-------------|
-| `npm run start:dev` | Start in watch (development) mode |
-| `npm run start:prod` | Run compiled production build |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm run lint` | Lint and auto-fix with ESLint |
-| `npm run format` | Format code with Prettier |
-| `npm run test` | Run unit tests |
-| `npm run test:e2e` | Run end-to-end tests |
-| `npm run test:cov` | Test coverage report |
-| `npm run prisma:migrate` | Run Prisma migrations |
-| `npm run prisma:generate` | Regenerate Prisma client |
-| `npm run prisma:studio` | Open Prisma Studio (DB browser) |
-| `npm run seed` | Seed initial manager account |
+| `build` | Build the NestJS app |
+| `format` | Format `src/**/*.ts` and `test/**/*.ts` with Prettier |
+| `format:check` | Check Prettier formatting |
+| `start` | Start the app |
+| `start:dev` | Start in watch mode |
+| `start:debug` | Start in debug + watch mode |
+| `start:prod` | Run the compiled production build |
+| `lint` | Run ESLint with `--fix` |
+| `test` | Run unit tests |
+| `test:watch` | Run unit tests in watch mode |
+| `test:cov` | Generate coverage report |
+| `test:e2e` | Run end-to-end tests |
+| `test:debug` | Run Jest in debug mode |
+| `seed` | Seed the database |
+| `prisma:generate` | Generate Prisma Client |
+| `prisma:migrate` | Run Prisma migrations |
+| `prisma:studio` | Open Prisma Studio |
+
+---
+
+## 🌐 ngrok / Sharing
+
+When you need to share the backend with the frontend intern:
+
+1. Start the API:
+   ```bash
+   npm run start:dev
+   ```
+2. In another terminal, expose port `3000`:
+   ```bash
+   ngrok http 3000
+   ```
+3. Add the generated URL to both:
+   - `CORS_ORIGINS`
+   - `NGROK_URL`
+4. Share the ngrok URL at the start of each day.
 
 ---
 
@@ -421,14 +549,11 @@ Content-Type: application/json
 ### Docker
 
 ```bash
-# Build image
 docker build -t kanban-task-board-api .
-
-# Run container
 docker run -p 3000:3000 --env-file .env kanban-task-board-api
 ```
 
-### Docker Compose (Full Stack)
+### Docker Compose
 
 ```bash
 docker-compose up --build
@@ -437,11 +562,11 @@ docker-compose up --build
 ### Production Checklist
 
 - [ ] Set `NODE_ENV=production`
-- [ ] Use strong, random values for `JWT_SECRET` and `JWT_REFRESH_SECRET` (min 64 chars)
-- [ ] Set `CORS_ORIGINS` to your actual frontend domain(s)
-- [ ] Run `npm run prisma:migrate` before starting
-- [ ] Use a managed PostgreSQL service (e.g. Railway, Supabase, RDS)
-- [ ] Set up process manager (e.g. PM2) or use the Docker image
+- [ ] Use strong secrets for `JWT_SECRET` and `JWT_REFRESH_SECRET`
+- [ ] Set `CORS_ORIGINS` to real frontend domains
+- [ ] Run `npm run prisma:migrate`
+- [ ] Use a managed PostgreSQL instance or hardened production database
+- [ ] Serve the compiled app with Docker or a process manager
 
 ---
 
