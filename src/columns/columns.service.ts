@@ -48,7 +48,12 @@ export class ColumnsService {
     const position = (maxPos._max.position ?? 0) + 1;
 
     return this.prisma.column.create({
-      data: { name: dto.name, boardId: dto.boardId, position, color: dto.color },
+      data: {
+        name: dto.name,
+        boardId: dto.boardId,
+        position,
+        color: dto.color,
+      },
     });
   }
 
@@ -83,7 +88,8 @@ export class ColumnsService {
   // ── PATCH /columns/reorder ───────────────────────────────────────────────────
 
   async reorder(items: ReorderItemDto[], userId: string) {
-    if (!items.length) throw new BadRequestException('items array must not be empty');
+    if (!items.length)
+      throw new BadRequestException('items array must not be empty');
 
     const ids = items.map((i) => i.id);
     if (new Set(ids).size !== ids.length)
@@ -93,13 +99,17 @@ export class ColumnsService {
     if (new Set(positions).size !== positions.length)
       throw new BadRequestException('Duplicate positions in request');
 
-    const columns = await this.prisma.column.findMany({ where: { id: { in: ids } } });
+    const columns = await this.prisma.column.findMany({
+      where: { id: { in: ids } },
+    });
     if (columns.length !== ids.length)
       throw new NotFoundException('One or more columns not found');
 
     const boardIds = new Set(columns.map((c) => c.boardId));
     if (boardIds.size !== 1)
-      throw new BadRequestException('All columns must belong to the same board');
+      throw new BadRequestException(
+        'All columns must belong to the same board',
+      );
 
     const board = await this.findBoardOrThrow([...boardIds][0]);
     this.assertOwner(board, userId);

@@ -10,7 +10,13 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { TasksService } from './tasks.service.js';
 import { CreateTaskDto } from './dto/create-task.dto.js';
 import { UpdateTaskDto } from './dto/update-task.dto.js';
@@ -90,7 +96,11 @@ export class TasksController {
   @ApiOperation({ summary: 'Update a task' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   @ApiResponse({ status: 403, description: 'Not a board member' })
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @CurrentUser() user: JwtPayload) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.tasksService.update(id, dto, user.sub);
   }
 
@@ -105,11 +115,20 @@ export class TasksController {
   }
 
   @Patch(':id/move')
-  @ApiOperation({ summary: 'Move task to a column at a specific position (reorders siblings)' })
+  @ApiOperation({
+    summary: 'Move task to a column at a specific position (reorders siblings)',
+  })
   @ApiResponse({ status: 200, description: 'Task moved' })
-  @ApiResponse({ status: 400, description: 'Target column is on a different board' })
+  @ApiResponse({
+    status: 400,
+    description: 'Target column is on a different board',
+  })
   @ApiResponse({ status: 404, description: 'Task or column not found' })
-  move(@Param('id') id: string, @Body() dto: MoveTaskDto, @CurrentUser() user: JwtPayload) {
+  move(
+    @Param('id') id: string,
+    @Body() dto: MoveTaskDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.tasksService.move(id, dto, user.sub);
   }
 
@@ -131,4 +150,3 @@ export class TasksController {
     return this.tasksService.unarchive(id, user.sub);
   }
 }
-

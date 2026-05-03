@@ -33,7 +33,8 @@ export class TasksService {
     });
     if (!board) throw new NotFoundException(`Board "${boardId}" not found`);
     const isMember = board.members.some((m) => m.userId === userId);
-    if (!isMember) throw new ForbiddenException('You are not a member of this board');
+    if (!isMember)
+      throw new ForbiddenException('You are not a member of this board');
     return board;
   }
 
@@ -115,7 +116,9 @@ export class TasksService {
     };
 
     const [field, dir] = sort.split(':');
-    const orderBy = { [field]: dir === 'asc' ? 'asc' : 'desc' } as Prisma.TaskOrderByWithRelationInput;
+    const orderBy = {
+      [field]: dir === 'asc' ? 'asc' : 'desc',
+    } as Prisma.TaskOrderByWithRelationInput;
 
     const [total, tasks] = await Promise.all([
       this.prisma.task.count({ where }),
@@ -125,7 +128,9 @@ export class TasksService {
         skip: (page - 1) * limit,
         take: limit,
         include: {
-          assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          assignee: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
           tags: { include: { tag: true } },
           _count: { select: { checklistItems: true } },
         },
@@ -164,7 +169,9 @@ export class TasksService {
         }),
       },
       include: {
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        assignee: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
         tags: { include: { tag: true } },
       },
     });
@@ -179,7 +186,9 @@ export class TasksService {
     return this.prisma.task.findUnique({
       where: { id },
       include: {
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        assignee: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
         tags: { include: { tag: true } },
         checklistItems: { orderBy: { position: 'asc' } },
       },
@@ -203,7 +212,9 @@ export class TasksService {
         ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.priority !== undefined && { priority: dto.priority }),
-        ...(dto.dueDate !== undefined && { dueDate: dto.dueDate ? new Date(dto.dueDate) : null }),
+        ...(dto.dueDate !== undefined && {
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        }),
         ...(dto.columnId !== undefined && { columnId: dto.columnId }),
         ...(dto.assigneeId !== undefined && { assigneeId: dto.assigneeId }),
         ...(dto.tagIds !== undefined && {
@@ -214,7 +225,9 @@ export class TasksService {
         }),
       },
       include: {
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        assignee: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
         tags: { include: { tag: true } },
       },
     });
@@ -292,7 +305,9 @@ export class TasksService {
     return this.prisma.task.findUnique({
       where: { id },
       include: {
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        assignee: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
         tags: { include: { tag: true } },
       },
     });
@@ -318,4 +333,3 @@ export class TasksService {
     return { message: 'Task unarchived successfully' };
   }
 }
-

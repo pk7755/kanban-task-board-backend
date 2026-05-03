@@ -11,8 +11,14 @@ export class HealthController {
 
   @Public()
   @Get()
-  @ApiOperation({ summary: 'Health check – verifies service and DB connectivity' })
-  @ApiResponse({ status: 200, description: 'Service is healthy', type: HealthResponseDto })
+  @ApiOperation({
+    summary: 'Health check – verifies service and DB connectivity',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Service is healthy',
+    type: HealthResponseDto,
+  })
   async check(): Promise<{ status: string; db: string; uptime: number }> {
     let dbStatus = 'ok';
     try {
