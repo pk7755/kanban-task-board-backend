@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module.js';
 import { BoardsModule } from './boards/boards.module.js';
 import { ColumnsModule } from './columns/columns.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
+import { ChecklistModule } from './checklist/checklist.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TasksModule } from './tasks/tasks.module.js';
     BoardsModule,
     ColumnsModule,
     TasksModule,
+    ChecklistModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
