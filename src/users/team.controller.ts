@@ -69,8 +69,11 @@ export class TeamController {
     type: UserResponseDto,
   })
   @ApiResponse({ status: 409, description: 'Email already exists' })
-  createTeamMember(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  createTeamMember(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() requester: JwtPayload,
+  ) {
+    return this.usersService.create(dto, requester.sub);
   }
 
   @Patch(':id')
@@ -135,7 +138,7 @@ export class TeamController {
     schema: { example: { tempPassword: 'a3f1c9e2b7d04581' } },
   })
   @ApiResponse({ status: 404, description: 'User not found' })
-  resetPassword(@Param('id') id: string) {
-    return this.usersService.resetPassword(id);
+  resetPassword(@Param('id') id: string, @CurrentUser() requester: JwtPayload) {
+    return this.usersService.resetPassword(id, requester.sub);
   }
 }

@@ -198,7 +198,76 @@ Creates an initial **Manager** account using the credentials in your `.env`:
 npm run seed
 ```
 
-### Prisma Studio (visual DB browser)
+---
+
+## 🔑 Default Login
+
+After seeding, a manager account is ready immediately:
+
+| Field    | Value                   |
+|----------|-------------------------|
+| Email    | `manager@example.com`   |
+| Password | `Manager@123`           |
+| Role     | `MANAGER`               |
+
+> Override with `SEED_MANAGER_EMAIL` and `SEED_MANAGER_PASSWORD` in `.env` before seeding.
+
+A second team member is also seeded:
+
+| Field    | Value                  |
+|----------|------------------------|
+| Email    | `member1@example.com`  |
+| Password | `Member@123`           |
+| Role     | `TEAM_MEMBER`          |
+
+---
+
+## 🏗 Architecture
+
+```
+                          HTTP Requests
+                               │
+                          ┌────▼────┐
+                          │  main   │  Helmet · CORS · Throttler · Prefix /api/v1
+                          └────┬────┘
+                               │
+                     ┌─────────▼─────────┐
+                     │     AppModule      │  Global: JwtAuthGuard · RolesGuard
+                     │                   │         LoggingInterceptor · TransformInterceptor
+                     │                   │         GlobalExceptionFilter
+                     └──┬────────────────┘
+                        │  imports
+          ┌─────────────┼─────────────────────────────────────────┐
+          │             │             │              │             │
+     ┌────▼───┐  ┌──────▼────┐ ┌─────▼────┐ ┌──────▼───┐ ┌──────▼────┐
+     │  Auth  │  │  Users    │ │  Boards  │ │ Columns  │ │   Tasks   │
+     │ Module │  │  Module   │ │  Module  │ │  Module  │ │  Module   │
+     └────────┘  └──────┬────┘ └──────────┘ └──────────┘ └────┬──────┘
+                        │                                       │
+                   ┌────▼──────────────────────────────────────▼────┐
+                   │               AuditModule                       │
+                   │   AuditService.log() ← called from UsersService │
+                   │                      ← called from TasksService │
+                   │   GET /audit-logs (MANAGER only, paginated)     │
+                   └────────────────────────────────────────────────┘
+          │             │
+     ┌────▼──────┐ ┌────▼────┐
+     │ Checklist │ │  Tags   │
+     │  Module   │ │ Module  │
+     └───────────┘ └─────────┘
+          │             │             │
+     ┌────▼─────────────▼─────────────▼────┐
+     │            PrismaModule              │
+     │   PrismaService → PostgreSQL DB      │
+     └──────────────────────────────────────┘
+
+Module → Service → PrismaService (all DB calls)
+Controller → Service only (no business logic in controllers)
+Guards: JwtAuthGuard (global) · RolesGuard (global, opt-in via @Roles())
+Public routes opt out via @Public() decorator
+```
+
+---
 
 ```bash
 npm run prisma:studio

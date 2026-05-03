@@ -1,0 +1,532 @@
+{
+  "info": {
+    "name": "Kanban Task Board API",
+    "description": "Complete collection for the Kanban Task Board REST API. All routes are prefixed /api/v1. Set {{baseUrl}} = http://localhost:3000 and {{accessToken}} after login.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "boardId", "value": "", "type": "string" },
+    { "key": "columnId", "value": "", "type": "string" },
+    { "key": "taskId", "value": "", "type": "string" },
+    { "key": "tagId", "value": "", "type": "string" },
+    { "key": "checklistItemId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/health",
+            "description": "Health check — returns status, db status, and uptime"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"Secure@123\",\n  \"name\": \"New User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@example.com\",\n  \"password\": \"Manager@123\"\n}"
+            },
+            "description": "Login with default manager credentials. Saves tokens automatically."
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/auth/me"
+          }
+        },
+        {
+          "name": "POST /auth/refresh",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users?search=john",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users"],
+              "query": [{ "key": "search", "value": "john", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "GET /users/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "PATCH /users/me",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Team Management (MANAGER only)",
+      "item": [
+        {
+          "name": "GET /users/team",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/team?page=1&limit=10&search=&role=TEAM_MEMBER",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "team"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "role", "value": "TEAM_MEMBER", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /users/team",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/users/team",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newmember@example.com\",\n  \"name\": \"New Member\",\n  \"password\": \"Member@123\",\n  \"role\": \"TEAM_MEMBER\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /users/team/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/users/team/{{userId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Renamed Member\",\n  \"isActive\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /users/team/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/users/team/{{userId}}",
+            "description": "Soft-delete — sets isActive = false"
+          }
+        },
+        {
+          "name": "POST /users/team/:id/reset-password",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/users/team/{{userId}}/reset-password",
+            "description": "Returns temp password once. User must change it on next login."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Boards",
+      "item": [
+        {
+          "name": "GET /boards",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/boards" }
+        },
+        {
+          "name": "POST /boards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('boardId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/boards",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sprint 1\"\n}" }
+          }
+        },
+        {
+          "name": "GET /boards/:id",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/boards/{{boardId}}" }
+        },
+        {
+          "name": "PATCH /boards/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/boards/{{boardId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sprint 2\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /boards/:id",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/v1/boards/{{boardId}}" }
+        },
+        {
+          "name": "POST /boards/:id/members",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/boards/{{boardId}}/members",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"member@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /boards/:id/members/:userId",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/boards/{{boardId}}/members/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Columns",
+      "item": [
+        {
+          "name": "POST /columns",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('columnId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/columns",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"To Do\",\n  \"boardId\": \"{{boardId}}\",\n  \"color\": \"#3b82f6\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /columns/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/columns/{{columnId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"In Progress\",\n  \"color\": \"#f59e0b\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /columns/:id",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/v1/columns/{{columnId}}" }
+        },
+        {
+          "name": "PATCH /columns/reorder",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/columns/reorder",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"id\": \"col-id-1\", \"position\": 0 },\n    { \"id\": \"col-id-2\", \"position\": 1 }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "GET /tasks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks?boardId={{boardId}}&page=1&limit=20&sort=createdAt:desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks"],
+              "query": [
+                { "key": "boardId", "value": "{{boardId}}" },
+                { "key": "columnId", "value": "", "disabled": true },
+                { "key": "priority", "value": "HIGH", "disabled": true },
+                { "key": "assigneeId", "value": "", "disabled": true },
+                { "key": "tagIds", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "dueBefore", "value": "", "disabled": true },
+                { "key": "dueAfter", "value": "", "disabled": true },
+                { "key": "overdue", "value": "true", "disabled": true },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "sort", "value": "createdAt:desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('taskId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/tasks",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement login page\",\n  \"description\": \"Create the login form with validation\",\n  \"priority\": \"HIGH\",\n  \"columnId\": \"{{columnId}}\",\n  \"assigneeId\": \"{{userId}}\",\n  \"dueDate\": \"2024-03-01T00:00:00.000Z\",\n  \"tagIds\": []\n}"
+            },
+            "description": "Team members: assigneeId is ignored and locked to their own ID."
+          }
+        },
+        {
+          "name": "GET /tasks/:id",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}" }
+        },
+        {
+          "name": "PATCH /tasks/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated title\",\n  \"priority\": \"MEDIUM\"\n}"
+            },
+            "description": "Team members can only update their own tasks. They cannot change assigneeId."
+          }
+        },
+        {
+          "name": "DELETE /tasks/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+            "description": "Team members can only delete their own tasks."
+          }
+        },
+        {
+          "name": "PATCH /tasks/:id/move",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}/move",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"columnId\": \"{{columnId}}\",\n  \"position\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /tasks/:id/archive",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}/archive"
+          }
+        },
+        {
+          "name": "POST /tasks/:id/unarchive",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}/unarchive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checklist",
+      "item": [
+        {
+          "name": "POST /tasks/:taskId/checklist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('checklistItemId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/tasks/{{taskId}}/checklist",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Write unit tests\"\n}" }
+          }
+        },
+        {
+          "name": "PATCH /checklist/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/checklist/{{checklistItemId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Write unit tests\",\n  \"done\": true\n}" }
+          }
+        },
+        {
+          "name": "DELETE /checklist/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/checklist/{{checklistItemId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tags",
+      "item": [
+        {
+          "name": "GET /boards/:id/tags",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/boards/{{boardId}}/tags"
+          }
+        },
+        {
+          "name": "POST /boards/:id/tags",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('tagId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/boards/{{boardId}}/tags",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bug\",\n  \"color\": \"#ef4444\"\n}" }
+          }
+        },
+        {
+          "name": "PATCH /tags/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/tags/{{tagId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Critical Bug\",\n  \"color\": \"#dc2626\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /tags/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/tags/{{tagId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit Logs (MANAGER only)",
+      "item": [
+        {
+          "name": "GET /audit-logs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit-logs?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audit-logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Returns paginated audit log entries. Manager only."
+          }
+        }
+      ]
+    }
+  ]
+}

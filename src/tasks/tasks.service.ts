@@ -5,15 +5,18 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AuditService } from '../audit/audit.service.js';
 import { CreateTaskDto } from './dto/create-task.dto.js';
 import { UpdateTaskDto } from './dto/update-task.dto.js';
 import { MoveTaskDto } from './dto/move-task.dto.js';
-import { Priority } from '../../generated/prisma/enums.js';
-import { Prisma } from '../../generated/prisma/client.js';
+import { Role, AuditAction } from '../../generated/prisma/enums.js';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,8 +35,7 @@ export class TasksService {
       include: { members: true },
     });
     if (!board) throw new NotFoundException(`Board "${boardId}" not found`);
-    const isMember = board.members.some((m) => m.userId === userId);
-    if (!isMember)
+    if (!board.members.some((m) => m.userId === userId))
       throw new ForbiddenException('You are not a member of this board');
     return board;
   }
@@ -44,110 +46,23 @@ export class TasksService {
     return column;
   }
 
-  // ── GET /tasks ────────────────────────────────────────────────────────────────
-
-  async findAll(
+  private assertTaskOwner(
+    task: { assigneeId: string | null },
     userId: string,
-    query: {
-      boardId?: string;
-      columnId?: string;
-      priority?: Priority;
-      assigneeId?: string;
-      tagIds?: string[];
-      search?: string;
-      dueBefore?: string;
-      dueAfter?: string;
-      overdue?: boolean;
-      page?: number;
-      limit?: number;
-      sort?: string;
-    },
+    userRole: Role,
   ) {
-    const {
-      boardId,
-      columnId,
-      priority,
-      assigneeId,
-      tagIds,
-      search,
-      dueBefore,
-      dueAfter,
-      overdue,
-      page = 1,
-      limit = 20,
-      sort = 'createdAt:desc',
-    } = query;
-
-    // Resolve which columns the user can access
-    let allowedColumnIds: string[] | undefined;
-
-    if (columnId) {
-      const column = await this.findColumnOrThrow(columnId);
-      await this.assertBoardMember(column.boardId, userId);
-      allowedColumnIds = [columnId];
-    } else if (boardId) {
-      await this.assertBoardMember(boardId, userId);
-      const columns = await this.prisma.column.findMany({
-        where: { boardId },
-        select: { id: true },
-      });
-      allowedColumnIds = columns.map((c) => c.id);
-    } else {
-      // Scope to all boards the user is a member of
-      const boards = await this.prisma.board.findMany({
-        where: { members: { some: { userId } } },
-        select: { columns: { select: { id: true } } },
-      });
-      allowedColumnIds = boards.flatMap((b) => b.columns.map((c) => c.id));
-    }
-
-    const where: Prisma.TaskWhereInput = {
-      columnId: { in: allowedColumnIds },
-      ...(priority && { priority }),
-      ...(assigneeId && { assigneeId }),
-      ...(tagIds?.length && { tags: { some: { tagId: { in: tagIds } } } }),
-      ...(search && { title: { contains: search, mode: 'insensitive' } }),
-      ...(overdue
-        ? { dueDate: { lt: new Date() }, archived: false }
-        : {
-            ...(dueBefore && { dueDate: { lte: new Date(dueBefore) } }),
-            ...(dueAfter && { dueDate: { gte: new Date(dueAfter) } }),
-          }),
-    };
-
-    const [field, dir] = sort.split(':');
-    const orderBy = {
-      [field]: dir === 'asc' ? 'asc' : 'desc',
-    } as Prisma.TaskOrderByWithRelationInput;
-
-    const [total, tasks] = await Promise.all([
-      this.prisma.task.count({ where }),
-      this.prisma.task.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          assignee: {
-            select: { id: true, name: true, email: true, avatarUrl: true },
-          },
-          tags: { include: { tag: true } },
-          _count: { select: { checklistItems: true } },
-        },
-      }),
-    ]);
-
-    return {
-      data: tasks,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    };
+    if (userRole === Role.TEAM_MEMBER && task.assigneeId !== userId)
+      throw new ForbiddenException('You can only modify your own tasks');
   }
 
   // ── POST /tasks ───────────────────────────────────────────────────────────────
 
-  async create(dto: CreateTaskDto, userId: string) {
+  async create(dto: CreateTaskDto, userId: string, userRole: Role) {
     const column = await this.findColumnOrThrow(dto.columnId);
     await this.assertBoardMember(column.boardId, userId);
+
+    // Team members can only assign tasks to themselves
+    const assigneeId = userRole === Role.TEAM_MEMBER ? userId : dto.assigneeId;
 
     const maxPos = await this.prisma.task.aggregate({
       where: { columnId: dto.columnId },
@@ -163,7 +78,7 @@ export class TasksService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         columnId: dto.columnId,
         position,
-        assigneeId: dto.assigneeId,
+        assigneeId,
         ...(dto.tagIds?.length && {
           tags: { create: dto.tagIds.map((tagId) => ({ tagId })) },
         }),
@@ -177,36 +92,21 @@ export class TasksService {
     });
   }
 
-  // ── GET /tasks/:id ────────────────────────────────────────────────────────────
-
-  async findOne(id: string, userId: string) {
-    const task = await this.findTaskOrThrow(id);
-    await this.assertBoardMember(task.column.boardId, userId);
-
-    return this.prisma.task.findUnique({
-      where: { id },
-      include: {
-        assignee: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-        tags: { include: { tag: true } },
-        checklistItems: { orderBy: { position: 'asc' } },
-      },
-    });
-  }
-
   // ── PATCH /tasks/:id ──────────────────────────────────────────────────────────
 
-  async update(id: string, dto: UpdateTaskDto, userId: string) {
+  async update(id: string, dto: UpdateTaskDto, userId: string, userRole: Role) {
     const task = await this.findTaskOrThrow(id);
     await this.assertBoardMember(task.column.boardId, userId);
+    this.assertTaskOwner(task, userId, userRole);
 
-    // If moving to a different column, validate target column membership
-    if (dto.columnId && dto.columnId !== task.columnId) {
+    // Team members cannot reassign tasks
+    if (userRole === Role.TEAM_MEMBER && dto.assigneeId !== undefined)
+      throw new ForbiddenException('Team members cannot reassign tasks');
+
+    if (dto.columnId && dto.columnId !== task.columnId)
       await this.findColumnOrThrow(dto.columnId);
-    }
 
-    return this.prisma.task.update({
+    const updated = await this.prisma.task.update({
       where: { id },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -231,13 +131,23 @@ export class TasksService {
         tags: { include: { tag: true } },
       },
     });
+
+    if (dto.assigneeId !== undefined && dto.assigneeId !== task.assigneeId) {
+      await this.audit.log(userId, AuditAction.TICKET_REASSIGNED, 'Task', id, {
+        from: task.assigneeId,
+        to: dto.assigneeId,
+      });
+    }
+
+    return updated;
   }
 
   // ── DELETE /tasks/:id ─────────────────────────────────────────────────────────
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, userRole: Role) {
     const task = await this.findTaskOrThrow(id);
     await this.assertBoardMember(task.column.boardId, userId);
+    this.assertTaskOwner(task, userId, userRole);
 
     await this.prisma.task.delete({ where: { id } });
     return { message: 'Task deleted successfully' };
@@ -245,16 +155,15 @@ export class TasksService {
 
   // ── PATCH /tasks/:id/move ─────────────────────────────────────────────────────
 
-  async move(id: string, dto: MoveTaskDto, userId: string) {
+  async move(id: string, dto: MoveTaskDto, userId: string, userRole: Role) {
     const task = await this.findTaskOrThrow(id);
     await this.assertBoardMember(task.column.boardId, userId);
+    this.assertTaskOwner(task, userId, userRole);
 
     const targetColumn = await this.findColumnOrThrow(dto.columnId);
 
-    // Ensure target column belongs to the same board
-    if (targetColumn.boardId !== task.column.boardId) {
+    if (targetColumn.boardId !== task.column.boardId)
       throw new BadRequestException('Target column must be on the same board');
-    }
 
     await this.prisma.$transaction(async (tx) => {
       const isSameColumn = task.columnId === dto.columnId;
@@ -263,7 +172,6 @@ export class TasksService {
 
       if (isSameColumn) {
         if (oldPosition < newPosition) {
-          // Shift tasks between old and new position up
           await tx.task.updateMany({
             where: {
               columnId: dto.columnId,
@@ -273,7 +181,6 @@ export class TasksService {
             data: { position: { decrement: 1 } },
           });
         } else if (oldPosition > newPosition) {
-          // Shift tasks between new and old position down
           await tx.task.updateMany({
             where: {
               columnId: dto.columnId,
@@ -284,12 +191,10 @@ export class TasksService {
           });
         }
       } else {
-        // Close the gap in the source column
         await tx.task.updateMany({
           where: { columnId: task.columnId, position: { gt: oldPosition } },
           data: { position: { decrement: 1 } },
         });
-        // Open space in the target column
         await tx.task.updateMany({
           where: { columnId: dto.columnId, position: { gte: newPosition } },
           data: { position: { increment: 1 } },
@@ -315,9 +220,10 @@ export class TasksService {
 
   // ── POST /tasks/:id/archive ───────────────────────────────────────────────────
 
-  async archive(id: string, userId: string) {
+  async archive(id: string, userId: string, userRole: Role) {
     const task = await this.findTaskOrThrow(id);
     await this.assertBoardMember(task.column.boardId, userId);
+    this.assertTaskOwner(task, userId, userRole);
 
     await this.prisma.task.update({ where: { id }, data: { archived: true } });
     return { message: 'Task archived successfully' };
@@ -325,9 +231,10 @@ export class TasksService {
 
   // ── POST /tasks/:id/unarchive ─────────────────────────────────────────────────
 
-  async unarchive(id: string, userId: string) {
+  async unarchive(id: string, userId: string, userRole: Role) {
     const task = await this.findTaskOrThrow(id);
     await this.assertBoardMember(task.column.boardId, userId);
+    this.assertTaskOwner(task, userId, userRole);
 
     await this.prisma.task.update({ where: { id }, data: { archived: false } });
     return { message: 'Task unarchived successfully' };

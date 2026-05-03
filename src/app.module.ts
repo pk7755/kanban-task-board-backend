@@ -14,6 +14,12 @@ import { UsersModule } from './users/users.module.js';
 import { BoardsModule } from './boards/boards.module.js';
 import { ColumnsModule } from './columns/columns.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
+<<<<<<< Updated upstream
+=======
+import { ChecklistModule } from './checklist/checklist.module.js';
+import { TagsModule } from './tags/tags.module.js';
+import { AuditModule } from './audit/audit.module.js';
+>>>>>>> Stashed changes
 
 @Module({
   imports: [
@@ -34,6 +40,12 @@ import { TasksModule } from './tasks/tasks.module.js';
     BoardsModule,
     ColumnsModule,
     TasksModule,
+<<<<<<< Updated upstream
+=======
+    ChecklistModule,
+    TagsModule,
+    AuditModule,
+>>>>>>> Stashed changes
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
