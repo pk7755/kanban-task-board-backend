@@ -9,7 +9,12 @@ import {
   HttpStatus,
   ParseArrayPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ColumnsService } from './columns.service.js';
 import { CreateColumnDto } from './dto/create-column.dto.js';
 import { UpdateColumnDto } from './dto/update-column.dto.js';
@@ -37,18 +42,24 @@ export class ColumnsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Bulk reorder columns by position (owner only)' })
   @ApiResponse({ status: 200, description: 'Columns reordered' })
-  @ApiResponse({ status: 400, description: 'Invalid payload (duplicates, empty array)' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid payload (duplicates, empty array)',
+  })
   @ApiResponse({ status: 403, description: 'Not the board owner' })
   @ApiResponse({ status: 404, description: 'One or more columns not found' })
   reorder(
-    @Body(new ParseArrayPipe({ items: ReorderItemDto })) items: ReorderItemDto[],
+    @Body(new ParseArrayPipe({ items: ReorderItemDto }))
+    items: ReorderItemDto[],
     @CurrentUser() user: JwtPayload,
   ) {
     return this.columnsService.reorder(items, user.sub);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Rename column, change color or position (owner only)' })
+  @ApiOperation({
+    summary: 'Rename column, change color or position (owner only)',
+  })
   @ApiResponse({ status: 200, description: 'Column updated' })
   @ApiResponse({ status: 403, description: 'Not the board owner' })
   @ApiResponse({ status: 404, description: 'Column not found' })

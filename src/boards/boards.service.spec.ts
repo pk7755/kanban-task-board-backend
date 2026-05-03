@@ -1,6 +1,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { BoardsService } from './boards.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -79,11 +83,20 @@ describe('BoardsService', () => {
 
       expect(mockPrisma.board.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { OR: [{ ownerId: OWNER_ID }, { members: { some: { userId: OWNER_ID } } }] },
+          where: {
+            OR: [
+              { ownerId: OWNER_ID },
+              { members: { some: { userId: OWNER_ID } } },
+            ],
+          },
         }),
       );
       expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({ id: BOARD_ID, name: 'Sprint Board', memberCount: 2 });
+      expect(result[0]).toMatchObject({
+        id: BOARD_ID,
+        name: 'Sprint Board',
+        memberCount: 2,
+      });
     });
 
     it('✅ returns empty array when user has no boards', async () => {
@@ -122,19 +135,36 @@ describe('BoardsService', () => {
     it('✅ returns board detail with columns and members for a board member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue({
         ...mockBoard,
-        members: [{ userId: OWNER_ID, joinedAt: new Date(), user: { id: OWNER_ID, name: 'Owner', email: 'o@x.com', avatarUrl: null } }],
+        members: [
+          {
+            userId: OWNER_ID,
+            joinedAt: new Date(),
+            user: {
+              id: OWNER_ID,
+              name: 'Owner',
+              email: 'o@x.com',
+              avatarUrl: null,
+            },
+          },
+        ],
         columns: [],
       });
 
       const result = await service.findOne(BOARD_ID, OWNER_ID);
 
-      expect(result).toMatchObject({ id: BOARD_ID, columns: [], members: expect.any(Array) });
+      expect(result).toMatchObject({
+        id: BOARD_ID,
+        columns: [],
+        members: expect.any(Array),
+      });
     });
 
     it('❌ throws NotFoundException when board does not exist', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id', OWNER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id', OWNER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('❌ throws ForbiddenException when user is not a board member', async () => {
@@ -144,7 +174,9 @@ describe('BoardsService', () => {
         columns: [],
       });
 
-      await expect(service.findOne(BOARD_ID, OTHER_USER_ID)).rejects.toThrow(ForbiddenException);
+      await expect(service.findOne(BOARD_ID, OTHER_USER_ID)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -153,9 +185,16 @@ describe('BoardsService', () => {
   describe('update', () => {
     it('✅ renames the board (owner only)', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.board.update.mockResolvedValue({ ...mockBoardWithCount, name: 'New Name' });
+      mockPrisma.board.update.mockResolvedValue({
+        ...mockBoardWithCount,
+        name: 'New Name',
+      });
 
-      const result = await service.update(BOARD_ID, { name: 'New Name' }, OWNER_ID);
+      const result = await service.update(
+        BOARD_ID,
+        { name: 'New Name' },
+        OWNER_ID,
+      );
 
       expect(mockPrisma.board.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { name: 'New Name' } }),
@@ -166,17 +205,17 @@ describe('BoardsService', () => {
     it('❌ throws ForbiddenException when a non-owner tries to update', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
 
-      await expect(service.update(BOARD_ID, { name: 'Hack' }, MEMBER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.update(BOARD_ID, { name: 'Hack' }, MEMBER_ID),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws NotFoundException when board does not exist', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(null);
 
-      await expect(service.update('bad-id', { name: 'X' }, OWNER_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.update('bad-id', { name: 'X' }, OWNER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -189,20 +228,26 @@ describe('BoardsService', () => {
 
       const result = await service.remove(BOARD_ID, OWNER_ID);
 
-      expect(mockPrisma.board.delete).toHaveBeenCalledWith({ where: { id: BOARD_ID } });
+      expect(mockPrisma.board.delete).toHaveBeenCalledWith({
+        where: { id: BOARD_ID },
+      });
       expect(result).toEqual({ message: 'Board deleted successfully' });
     });
 
     it('❌ throws ForbiddenException when a non-owner tries to delete', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
 
-      await expect(service.remove(BOARD_ID, MEMBER_ID)).rejects.toThrow(ForbiddenException);
+      await expect(service.remove(BOARD_ID, MEMBER_ID)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('❌ throws NotFoundException when board does not exist', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('bad-id', OWNER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.remove('bad-id', OWNER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -217,13 +262,22 @@ describe('BoardsService', () => {
         ...mockBoard,
         members: [{ userId: OWNER_ID }],
       });
-      mockPrisma.user.findUnique.mockResolvedValueOnce({ ...mockMemberUser, id: OTHER_USER_ID });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        ...mockMemberUser,
+        id: OTHER_USER_ID,
+      });
       mockPrisma.boardMember.create.mockResolvedValue({});
 
-      const result = await service.addMember(BOARD_ID, 'other@example.com', OWNER_ID);
+      const result = await service.addMember(
+        BOARD_ID,
+        'other@example.com',
+        OWNER_ID,
+      );
 
       expect(mockPrisma.boardMember.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ boardId: BOARD_ID }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ boardId: BOARD_ID }),
+        }),
       );
       expect(result.message).toContain('added to the board');
     });
@@ -231,23 +285,26 @@ describe('BoardsService', () => {
     it('❌ throws ForbiddenException when non-owner tries to add a member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
 
-      await expect(service.addMember(BOARD_ID, 'x@example.com', MEMBER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.addMember(BOARD_ID, 'x@example.com', MEMBER_ID),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws NotFoundException when the target user email does not exist', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.addMember(BOARD_ID, 'nobody@example.com', OWNER_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.addMember(BOARD_ID, 'nobody@example.com', OWNER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('❌ throws ConflictException when user is already a member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard); // MEMBER_ID already in members
-      mockPrisma.user.findUnique.mockResolvedValue({ ...mockMemberUser, id: MEMBER_ID });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockMemberUser,
+        id: MEMBER_ID,
+      });
 
       await expect(
         service.addMember(BOARD_ID, mockMemberUser.email, OWNER_ID),
@@ -273,17 +330,17 @@ describe('BoardsService', () => {
     it('❌ throws ForbiddenException when non-owner tries to remove a member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
 
-      await expect(service.removeMember(BOARD_ID, OWNER_ID, MEMBER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.removeMember(BOARD_ID, OWNER_ID, MEMBER_ID),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws ForbiddenException when trying to remove the board owner', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
 
-      await expect(service.removeMember(BOARD_ID, OWNER_ID, OWNER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.removeMember(BOARD_ID, OWNER_ID, OWNER_ID),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws NotFoundException when target user is not a board member', async () => {
@@ -292,9 +349,9 @@ describe('BoardsService', () => {
         members: [{ userId: OWNER_ID }], // OTHER_USER_ID is not a member
       });
 
-      await expect(service.removeMember(BOARD_ID, OTHER_USER_ID, OWNER_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.removeMember(BOARD_ID, OTHER_USER_ID, OWNER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

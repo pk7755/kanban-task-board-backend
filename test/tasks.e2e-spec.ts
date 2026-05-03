@@ -1,4 +1,12 @@
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -23,8 +31,21 @@ const OTHER_COLUMN_ID = 'col-uuid-2';
 const TASK_ID = 'task-uuid-1';
 const TAG_ID = 'tag-uuid-1';
 
-const mockColumn = { id: COLUMN_ID, name: 'To Do', boardId: BOARD_ID, position: 1, color: null, createdAt: new Date(), updatedAt: new Date() };
-const mockBoard = { id: BOARD_ID, name: 'Test Board', ownerId: USER_ID, members: [{ userId: USER_ID }] };
+const mockColumn = {
+  id: COLUMN_ID,
+  name: 'To Do',
+  boardId: BOARD_ID,
+  position: 1,
+  color: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+const mockBoard = {
+  id: BOARD_ID,
+  name: 'Test Board',
+  ownerId: USER_ID,
+  members: [{ userId: USER_ID }],
+};
 const mockTask = {
   id: TASK_ID,
   title: 'Test Task',
@@ -66,7 +87,11 @@ const mockPrisma = {
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
-function signToken(jwtService: JwtService, sub: string, role = 'MANAGER'): string {
+function signToken(
+  jwtService: JwtService,
+  sub: string,
+  role = 'MANAGER',
+): string {
   return jwtService.sign(
     { sub, email: `${sub}@test.com`, role, tokenVersion: 0 },
     { secret: process.env['JWT_SECRET'], expiresIn: '1h' },
@@ -120,7 +145,9 @@ describe('Tasks API (e2e)', () => {
 
   describe('GET /api/v1/tasks', () => {
     it('✅ returns paginated tasks for authenticated member', async () => {
-      mockPrisma.board.findMany.mockResolvedValue([{ columns: [{ id: COLUMN_ID }] }]);
+      mockPrisma.board.findMany.mockResolvedValue([
+        { columns: [{ id: COLUMN_ID }] },
+      ]);
       mockPrisma.task.count.mockResolvedValue(1);
       mockPrisma.task.findMany.mockResolvedValue([mockTask]);
 
@@ -141,7 +168,12 @@ describe('Tasks API (e2e)', () => {
 
       await request(app.getHttpServer())
         .get('/api/v1/tasks')
-        .query({ boardId: BOARD_ID, priority: 'HIGH', search: 'login', overdue: 'true' })
+        .query({
+          boardId: BOARD_ID,
+          priority: 'HIGH',
+          search: 'login',
+          overdue: 'true',
+        })
         .set('Authorization', `Bearer ${memberToken}`)
         .expect(200);
     });
@@ -167,7 +199,10 @@ describe('Tasks API (e2e)', () => {
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.task.aggregate.mockResolvedValue({ _max: { position: 0 } });
-      mockPrisma.task.create.mockResolvedValue({ ...mockTask, id: 'new-task-uuid' });
+      mockPrisma.task.create.mockResolvedValue({
+        ...mockTask,
+        id: 'new-task-uuid',
+      });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/tasks')
@@ -231,7 +266,10 @@ describe('Tasks API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).post('/api/v1/tasks').send(validBody).expect(401);
+      await request(app.getHttpServer())
+        .post('/api/v1/tasks')
+        .send(validBody)
+        .expect(401);
     });
 
     it('🚫 returns 403 when user is not a board member', async () => {
@@ -277,7 +315,9 @@ describe('Tasks API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).get(`/api/v1/tasks/${TASK_ID}`).expect(401);
+      await request(app.getHttpServer())
+        .get(`/api/v1/tasks/${TASK_ID}`)
+        .expect(401);
     });
 
     it('🚫 returns 404 when task does not exist', async () => {
@@ -309,7 +349,10 @@ describe('Tasks API (e2e)', () => {
     it('✅ updates task title', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(mockTask);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.task.update.mockResolvedValue({ ...mockTask, title: 'Updated Title' });
+      mockPrisma.task.update.mockResolvedValue({
+        ...mockTask,
+        title: 'Updated Title',
+      });
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/tasks/${TASK_ID}`)
@@ -375,7 +418,9 @@ describe('Tasks API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).delete(`/api/v1/tasks/${TASK_ID}`).expect(401);
+      await request(app.getHttpServer())
+        .delete(`/api/v1/tasks/${TASK_ID}`)
+        .expect(401);
     });
 
     it('🚫 returns 404 when task does not exist', async () => {
@@ -442,9 +487,16 @@ describe('Tasks API (e2e)', () => {
     });
 
     it('⚠️ returns 400 when target column is on a different board', async () => {
-      mockPrisma.task.findUnique.mockResolvedValue({ ...mockTask, column: mockColumn });
+      mockPrisma.task.findUnique.mockResolvedValue({
+        ...mockTask,
+        column: mockColumn,
+      });
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.column.findUnique.mockResolvedValue({ ...mockColumn, id: OTHER_COLUMN_ID, boardId: 'other-board' });
+      mockPrisma.column.findUnique.mockResolvedValue({
+        ...mockColumn,
+        id: OTHER_COLUMN_ID,
+        boardId: 'other-board',
+      });
 
       await request(app.getHttpServer())
         .patch(`/api/v1/tasks/${TASK_ID}/move`)
@@ -490,9 +542,15 @@ describe('Tasks API (e2e)', () => {
 
   describe('POST /api/v1/tasks/:id/unarchive', () => {
     it('✅ unarchives the task and returns 200', async () => {
-      mockPrisma.task.findUnique.mockResolvedValue({ ...mockTask, archived: true });
+      mockPrisma.task.findUnique.mockResolvedValue({
+        ...mockTask,
+        archived: true,
+      });
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.task.update.mockResolvedValue({ ...mockTask, archived: false });
+      mockPrisma.task.update.mockResolvedValue({
+        ...mockTask,
+        archived: false,
+      });
 
       const res = await request(app.getHttpServer())
         .post(`/api/v1/tasks/${TASK_ID}/unarchive`)

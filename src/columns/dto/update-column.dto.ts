@@ -1,5 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength, IsOptional, IsInt, Min } from 'class-validator';
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  IsInt,
+  Min,
+} from 'class-validator';
 
 export class UpdateColumnDto {
   @ApiPropertyOptional({ example: 'In Progress', minLength: 1, maxLength: 50 })

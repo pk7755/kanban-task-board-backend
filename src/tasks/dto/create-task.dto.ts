@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Priority } from '../../../generated/prisma/enums.js';
 
 export class CreateTaskDto {
@@ -9,7 +18,9 @@ export class CreateTaskDto {
   @MaxLength(255)
   title!: string;
 
-  @ApiPropertyOptional({ example: 'Include OAuth buttons and forgot-password link' })
+  @ApiPropertyOptional({
+    example: 'Include OAuth buttons and forgot-password link',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -33,7 +44,10 @@ export class CreateTaskDto {
   @IsUUID()
   assigneeId?: string;
 
-  @ApiPropertyOptional({ type: [String], example: ['tag-uuid-1', 'tag-uuid-2'] })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['tag-uuid-1', 'tag-uuid-2'],
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })

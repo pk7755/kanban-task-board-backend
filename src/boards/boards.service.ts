@@ -23,13 +23,18 @@ export class BoardsService {
     return board;
   }
 
-  private assertMember(board: { members: { userId: string }[] }, userId: string) {
+  private assertMember(
+    board: { members: { userId: string }[] },
+    userId: string,
+  ) {
     const isMember = board.members.some((m) => m.userId === userId);
-    if (!isMember) throw new ForbiddenException('You are not a member of this board');
+    if (!isMember)
+      throw new ForbiddenException('You are not a member of this board');
   }
 
   private assertOwner(board: { ownerId: string }, userId: string) {
-    if (board.ownerId !== userId) throw new ForbiddenException('Only the board owner can do this');
+    if (board.ownerId !== userId)
+      throw new ForbiddenException('Only the board owner can do this');
   }
 
   // ── GET /boards ────────────────────────────────────────────────────────────
@@ -80,7 +85,11 @@ export class BoardsService {
       where: { id },
       include: {
         members: {
-          include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
           orderBy: { joinedAt: 'asc' },
         },
         columns: {
@@ -171,19 +180,27 @@ export class BoardsService {
     this.assertOwner(board, requesterId);
 
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new NotFoundException(`No user found with email "${email}"`);
+    if (!user)
+      throw new NotFoundException(`No user found with email "${email}"`);
 
     const alreadyMember = board.members.some((m) => m.userId === user.id);
-    if (alreadyMember) throw new ConflictException('User is already a member of this board');
+    if (alreadyMember)
+      throw new ConflictException('User is already a member of this board');
 
-    await this.prisma.boardMember.create({ data: { boardId, userId: user.id } });
+    await this.prisma.boardMember.create({
+      data: { boardId, userId: user.id },
+    });
 
     return { message: `${user.name} added to the board` };
   }
 
   // ── DELETE /boards/:id/members/:userId ─────────────────────────────────────
 
-  async removeMember(boardId: string, targetUserId: string, requesterId: string) {
+  async removeMember(
+    boardId: string,
+    targetUserId: string,
+    requesterId: string,
+  ) {
     const board = await this.findBoardOrThrow(boardId);
     this.assertOwner(board, requesterId);
 
@@ -192,7 +209,8 @@ export class BoardsService {
     }
 
     const isMember = board.members.some((m) => m.userId === targetUserId);
-    if (!isMember) throw new NotFoundException('User is not a member of this board');
+    if (!isMember)
+      throw new NotFoundException('User is not a member of this board');
 
     await this.prisma.boardMember.delete({
       where: { boardId_userId: { boardId, userId: targetUserId } },

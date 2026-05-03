@@ -32,14 +32,21 @@ export class UsersController {
   @Post()
   @Roles(Role.MANAGER)
   @ApiOperation({ summary: 'Create a new user (MANAGER only)' })
-  @ApiResponse({ status: 201, description: 'User created', type: UserResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'User created',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Email already exists' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'List users with optional search — for assignee dropdowns (authenticated)' })
+  @ApiOperation({
+    summary:
+      'List users with optional search — for assignee dropdowns (authenticated)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
@@ -58,27 +65,44 @@ export class UsersController {
 
   @Patch('me')
   @ApiOperation({ summary: 'Update own profile' })
-  @ApiResponse({ status: 200, description: 'Profile updated', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Email already exists' })
   updateMe(
     @Body() updateUserDto: UpdateUserDto,
     @CurrentUser() requester: JwtPayload,
   ) {
-    return this.usersService.update(requester.sub, updateUserDto, requester.sub, requester.role);
+    return this.usersService.update(
+      requester.sub,
+      updateUserDto,
+      requester.sub,
+      requester.role,
+    );
   }
 
   @Get('by-email')
   @ApiOperation({ summary: 'Get a user by email (authenticated)' })
   @ApiQuery({ name: 'email', required: true, type: String })
-  @ApiResponse({ status: 200, description: 'User found', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   findByEmail(@Query('email') email: string) {
-    return this.usersService.findByEmail(email);  
+    return this.usersService.findByEmail(email);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a user by ID (authenticated)' })
-  @ApiResponse({ status: 200, description: 'User found', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);

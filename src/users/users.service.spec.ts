@@ -1,6 +1,17 @@
-import { jest, describe, it, expect, beforeEach, beforeAll } from '@jest/globals';
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+} from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -9,7 +20,7 @@ import { Role } from '../../generated/prisma/enums.js';
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const MANAGER_ID = 'manager-uuid-1';
-const MEMBER_ID  = 'member-uuid-1';
+const MEMBER_ID = 'member-uuid-1';
 const TEST_PASSWORD = 'SecurePass@123';
 
 const mockManager = {
@@ -39,10 +50,10 @@ const mockMember = {
 const mockPrisma = {
   user: {
     findUnique: jest.fn(),
-    findMany:   jest.fn(),
-    count:      jest.fn(),
-    create:     jest.fn(),
-    update:     jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -97,9 +108,14 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue(mockMember);
 
-      await service.create({ email: 'a@b.com', password: TEST_PASSWORD, name: 'A' });
+      await service.create({
+        email: 'a@b.com',
+        password: TEST_PASSWORD,
+        name: 'A',
+      });
 
-      const savedPassword = mockPrisma.user.create.mock.calls[0][0].data.password;
+      const savedPassword =
+        mockPrisma.user.create.mock.calls[0][0].data.password;
       expect(savedPassword).not.toBe(TEST_PASSWORD);
 
       // Verify the stored value is a real bcrypt hash of the original password
@@ -111,7 +127,12 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue(mockManager);
 
-      await service.create({ email: 'mgr@example.com', password: TEST_PASSWORD, name: 'Mgr', role: Role.MANAGER });
+      await service.create({
+        email: 'mgr@example.com',
+        password: TEST_PASSWORD,
+        name: 'Mgr',
+        role: Role.MANAGER,
+      });
 
       const createData = mockPrisma.user.create.mock.calls[0][0].data;
       expect(createData.role).toBe(Role.MANAGER);
@@ -121,7 +142,11 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockMember);
 
       await expect(
-        service.create({ email: 'member@example.com', password: TEST_PASSWORD, name: 'Dup' }),
+        service.create({
+          email: 'member@example.com',
+          password: TEST_PASSWORD,
+          name: 'Dup',
+        }),
       ).rejects.toThrow(ConflictException);
 
       expect(mockPrisma.user.create).not.toHaveBeenCalled();
@@ -152,8 +177,12 @@ describe('UsersService', () => {
       const whereArg = mockPrisma.user.findMany.mock.calls[0][0].where;
       expect(whereArg.OR).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ email: { contains: 'manager', mode: 'insensitive' } }),
-          expect.objectContaining({ name:  { contains: 'manager', mode: 'insensitive' } }),
+          expect.objectContaining({
+            email: { contains: 'manager', mode: 'insensitive' },
+          }),
+          expect.objectContaining({
+            name: { contains: 'manager', mode: 'insensitive' },
+          }),
         ]),
       );
     });
@@ -167,7 +196,11 @@ describe('UsersService', () => {
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 10, take: 5 }),
       );
-      expect(result.pagination).toMatchObject({ page: 3, limit: 5, totalPages: 5 });
+      expect(result.pagination).toMatchObject({
+        page: 3,
+        limit: 5,
+        totalPages: 5,
+      });
     });
   });
 
@@ -185,7 +218,9 @@ describe('UsersService', () => {
     it('❌ throws NotFoundException when user does not exist', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -214,11 +249,19 @@ describe('UsersService', () => {
   describe('update', () => {
     it('✅ allows a user to update their own profile', async () => {
       mockPrisma.user.findUnique
-        .mockResolvedValueOnce(mockMember)  // findOne guard
-        .mockResolvedValueOnce(null);       // email conflict check
-      mockPrisma.user.update.mockResolvedValue({ ...mockMember, name: 'New Name' });
+        .mockResolvedValueOnce(mockMember) // findOne guard
+        .mockResolvedValueOnce(null); // email conflict check
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockMember,
+        name: 'New Name',
+      });
 
-      const result = await service.update(MEMBER_ID, { name: 'New Name' }, MEMBER_ID, Role.TEAM_MEMBER);
+      const result = await service.update(
+        MEMBER_ID,
+        { name: 'New Name' },
+        MEMBER_ID,
+        Role.TEAM_MEMBER,
+      );
 
       expect(result.name).toBe('New Name');
     });
@@ -227,7 +270,12 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce(mockMember);
       mockPrisma.user.update.mockResolvedValue(mockMember);
 
-      await service.update(MEMBER_ID, { name: 'Changed' }, MANAGER_ID, Role.MANAGER);
+      await service.update(
+        MEMBER_ID,
+        { name: 'Changed' },
+        MANAGER_ID,
+        Role.MANAGER,
+      );
 
       expect(mockPrisma.user.update).toHaveBeenCalled();
     });
@@ -236,17 +284,27 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockMember);
 
       await expect(
-        service.update(MANAGER_ID, { name: 'Hack' }, MEMBER_ID, Role.TEAM_MEMBER),
+        service.update(
+          MANAGER_ID,
+          { name: 'Hack' },
+          MEMBER_ID,
+          Role.TEAM_MEMBER,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws ConflictException when new email is already used by another user', async () => {
       mockPrisma.user.findUnique
-        .mockResolvedValueOnce(mockMember)   // findOne
+        .mockResolvedValueOnce(mockMember) // findOne
         .mockResolvedValueOnce(mockManager); // email conflict — different user
 
       await expect(
-        service.update(MEMBER_ID, { email: mockManager.email }, MEMBER_ID, Role.TEAM_MEMBER),
+        service.update(
+          MEMBER_ID,
+          { email: mockManager.email },
+          MEMBER_ID,
+          Role.TEAM_MEMBER,
+        ),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -290,7 +348,11 @@ describe('UsersService', () => {
   describe('updateTeamMember', () => {
     it('✅ updates a team member name and status', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockMember);
-      mockPrisma.user.update.mockResolvedValue({ ...mockMember, name: 'Updated', isActive: false });
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockMember,
+        name: 'Updated',
+        isActive: false,
+      });
 
       const result = await service.updateTeamMember(
         MEMBER_ID,
@@ -299,14 +361,19 @@ describe('UsersService', () => {
       );
 
       expect(mockPrisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ name: 'Updated', isActive: false }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'Updated', isActive: false }),
+        }),
       );
       expect(result.name).toBe('Updated');
     });
 
     it('✅ allows manager to update their own name without changing role', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockManager);
-      mockPrisma.user.update.mockResolvedValue({ ...mockManager, name: 'Boss' });
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockManager,
+        name: 'Boss',
+      });
 
       await service.updateTeamMember(MANAGER_ID, { name: 'Boss' }, MANAGER_ID);
 
@@ -317,7 +384,11 @@ describe('UsersService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockManager);
 
       await expect(
-        service.updateTeamMember(MANAGER_ID, { role: Role.TEAM_MEMBER }, MANAGER_ID),
+        service.updateTeamMember(
+          MANAGER_ID,
+          { role: Role.TEAM_MEMBER },
+          MANAGER_ID,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -335,7 +406,10 @@ describe('UsersService', () => {
   describe('removeTeamMember', () => {
     it('✅ soft-deletes a team member (isActive → false)', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockMember);
-      mockPrisma.user.update.mockResolvedValue({ ...mockMember, isActive: false });
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockMember,
+        isActive: false,
+      });
 
       await service.removeTeamMember(MEMBER_ID, MANAGER_ID);
 
@@ -347,17 +421,17 @@ describe('UsersService', () => {
     it('❌ throws ForbiddenException when manager tries to deactivate themselves', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockManager);
 
-      await expect(service.removeTeamMember(MANAGER_ID, MANAGER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.removeTeamMember(MANAGER_ID, MANAGER_ID),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws NotFoundException when user does not exist', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.removeTeamMember('bad-id', MANAGER_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.removeTeamMember('bad-id', MANAGER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -380,14 +454,18 @@ describe('UsersService', () => {
       expect(matches).toBe(true);
 
       expect(mockPrisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ refreshToken: null }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ refreshToken: null }),
+        }),
       );
     });
 
     it('❌ throws NotFoundException when user does not exist', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.resetPassword('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.resetPassword('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

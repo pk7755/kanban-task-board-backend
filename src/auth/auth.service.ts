@@ -45,7 +45,9 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('A user with this email already exists');
     }
@@ -58,10 +60,23 @@ export class AuthService {
         password: hashedPassword,
         avatarUrl: dto.avatarUrl ?? null,
       },
-      select: { id: true, email: true, name: true, role: true, avatarUrl: true, createdAt: true, tokenVersion: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatarUrl: true,
+        createdAt: true,
+        tokenVersion: true,
+      },
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.tokenVersion,
+    );
     this.logger.log(`User registered: ${user.email}`);
     return { user, ...tokens };
   }
@@ -75,10 +90,22 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.tokenVersion,
+    );
     this.logger.log(`User logged in: ${user.email}`);
     return {
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, createdAt: user.createdAt },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+      },
       ...tokens,
     };
   }
@@ -98,11 +125,15 @@ export class AuthService {
     });
 
     if (!user || !user.refreshToken) {
-      throw new UnauthorizedException('Refresh token revoked or user not found');
+      throw new UnauthorizedException(
+        'Refresh token revoked or user not found',
+      );
     }
 
     if (user.tokenVersion !== payload.tokenVersion) {
-      throw new UnauthorizedException('Token has been revoked. Please log in again');
+      throw new UnauthorizedException(
+        'Token has been revoked. Please log in again',
+      );
     }
 
     const isValid = await bcrypt.compare(refreshToken, user.refreshToken);
@@ -110,13 +141,32 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token mismatch');
     }
 
-    return this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
+    return this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.tokenVersion,
+    );
   }
 
-  async getMe(userId: string): Promise<{ id: string; email: string; name: string; role: Role; avatarUrl: string | null; createdAt: Date }> {
+  async getMe(userId: string): Promise<{
+    id: string;
+    email: string;
+    name: string;
+    role: Role;
+    avatarUrl: string | null;
+    createdAt: Date;
+  }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, role: true, avatarUrl: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
     });
     if (!user) throw new UnauthorizedException('User not found');
     return user;
@@ -133,17 +183,28 @@ export class AuthService {
     this.logger.log(`User logged out: ${userId}`);
   }
 
-  private async generateTokens(userId: string, email: string, role: Role, tokenVersion: number): Promise<AuthTokens> {
+  private async generateTokens(
+    userId: string,
+    email: string,
+    role: Role,
+    tokenVersion: number,
+  ): Promise<AuthTokens> {
     const payload: JwtPayload = { sub: userId, email, role, tokenVersion };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('JWT_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m') as StringValue,
+        expiresIn: this.configService.get<string>(
+          'JWT_ACCESS_EXPIRES_IN',
+          '15m',
+        ) as StringValue,
       }),
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d') as StringValue,
+        expiresIn: this.configService.get<string>(
+          'JWT_REFRESH_EXPIRES_IN',
+          '7d',
+        ) as StringValue,
       }),
     ]);
 

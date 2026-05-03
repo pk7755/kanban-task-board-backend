@@ -1,6 +1,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { TasksService } from './tasks.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Priority } from '../../generated/prisma/enums.js';
@@ -16,9 +20,32 @@ const OTHER_COLUMN_ID = 'col-uuid-2';
 const TASK_ID = 'task-uuid-1';
 const TAG_ID = 'tag-uuid-1';
 
-const mockColumn = { id: COLUMN_ID, name: 'To Do', boardId: BOARD_ID, position: 1, color: null, createdAt: new Date(), updatedAt: new Date() };
-const mockOtherColumn = { id: OTHER_COLUMN_ID, name: 'In Progress', boardId: BOARD_ID, position: 2, color: null, createdAt: new Date(), updatedAt: new Date() };
-const mockBoard = { id: BOARD_ID, name: 'Test Board', ownerId: USER_ID, members: [{ userId: USER_ID }], createdAt: new Date(), updatedAt: new Date() };
+const mockColumn = {
+  id: COLUMN_ID,
+  name: 'To Do',
+  boardId: BOARD_ID,
+  position: 1,
+  color: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+const mockOtherColumn = {
+  id: OTHER_COLUMN_ID,
+  name: 'In Progress',
+  boardId: BOARD_ID,
+  position: 2,
+  color: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+const mockBoard = {
+  id: BOARD_ID,
+  name: 'Test Board',
+  ownerId: USER_ID,
+  members: [{ userId: USER_ID }],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 const mockTask = {
   id: TASK_ID,
@@ -95,16 +122,25 @@ describe('TasksService', () => {
 
   describe('findAll', () => {
     it('✅ returns paginated tasks scoped to all user boards when no filter provided', async () => {
-      mockPrisma.board.findMany.mockResolvedValue([{ columns: [{ id: COLUMN_ID }] }]);
+      mockPrisma.board.findMany.mockResolvedValue([
+        { columns: [{ id: COLUMN_ID }] },
+      ]);
       mockPrisma.task.count.mockResolvedValue(2);
       mockPrisma.task.findMany.mockResolvedValue([mockTask]);
 
       const result = await service.findAll(USER_ID, {});
 
       expect(result.data).toEqual([mockTask]);
-      expect(result.meta).toEqual({ total: 2, page: 1, limit: 20, totalPages: 1 });
+      expect(result.meta).toEqual({
+        total: 2,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
       expect(mockPrisma.board.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { members: { some: { userId: USER_ID } } } }),
+        expect.objectContaining({
+          where: { members: { some: { userId: USER_ID } } },
+        }),
       );
     });
 
@@ -134,7 +170,9 @@ describe('TasksService', () => {
     });
 
     it('✅ applies priority, search, and overdue filters', async () => {
-      mockPrisma.board.findMany.mockResolvedValue([{ columns: [{ id: COLUMN_ID }] }]);
+      mockPrisma.board.findMany.mockResolvedValue([
+        { columns: [{ id: COLUMN_ID }] },
+      ]);
       mockPrisma.task.count.mockResolvedValue(0);
       mockPrisma.task.findMany.mockResolvedValue([]);
 
@@ -146,13 +184,18 @@ describe('TasksService', () => {
 
       const whereArg = mockPrisma.task.findMany.mock.calls[0][0].where;
       expect(whereArg.priority).toBe(Priority.HIGH);
-      expect(whereArg.title).toEqual({ contains: 'login', mode: 'insensitive' });
+      expect(whereArg.title).toEqual({
+        contains: 'login',
+        mode: 'insensitive',
+      });
       expect(whereArg.archived).toBe(false);
       expect(whereArg.dueDate).toEqual({ lt: expect.any(Date) });
     });
 
     it('✅ respects page and limit for pagination', async () => {
-      mockPrisma.board.findMany.mockResolvedValue([{ columns: [{ id: COLUMN_ID }] }]);
+      mockPrisma.board.findMany.mockResolvedValue([
+        { columns: [{ id: COLUMN_ID }] },
+      ]);
       mockPrisma.task.count.mockResolvedValue(50);
       mockPrisma.task.findMany.mockResolvedValue([]);
 
@@ -161,7 +204,12 @@ describe('TasksService', () => {
       expect(mockPrisma.task.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 20, take: 10 }),
       );
-      expect(result.meta).toEqual({ total: 50, page: 3, limit: 10, totalPages: 5 });
+      expect(result.meta).toEqual({
+        total: 50,
+        page: 3,
+        limit: 10,
+        totalPages: 5,
+      });
     });
 
     it('❌ throws ForbiddenException if user is not a board member', async () => {
@@ -170,17 +218,17 @@ describe('TasksService', () => {
         members: [{ userId: OTHER_USER_ID }],
       });
 
-      await expect(service.findAll(USER_ID, { boardId: BOARD_ID })).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findAll(USER_ID, { boardId: BOARD_ID }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('❌ throws NotFoundException if boardId does not exist', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(null);
 
-      await expect(service.findAll(USER_ID, { boardId: 'no-board' })).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findAll(USER_ID, { boardId: 'no-board' }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -191,13 +239,18 @@ describe('TasksService', () => {
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.task.aggregate.mockResolvedValue({ _max: { position: 3 } });
-      mockPrisma.task.create.mockResolvedValue({ ...mockTaskWithRelations, position: 4 });
+      mockPrisma.task.create.mockResolvedValue({
+        ...mockTaskWithRelations,
+        position: 4,
+      });
 
       const dto = { title: 'New Task', columnId: COLUMN_ID };
-      const result = await service.create(dto as any, USER_ID);
+      const result = await service.create(dto, USER_ID);
 
       expect(mockPrisma.task.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ position: 4 }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ position: 4 }),
+        }),
       );
       expect(result.position).toBe(4);
     });
@@ -206,12 +259,20 @@ describe('TasksService', () => {
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.task.aggregate.mockResolvedValue({ _max: { position: null } });
-      mockPrisma.task.create.mockResolvedValue({ ...mockTaskWithRelations, position: 1 });
+      mockPrisma.task.create.mockResolvedValue({
+        ...mockTaskWithRelations,
+        position: 1,
+      });
 
-      await service.create({ title: 'First Task', columnId: COLUMN_ID } as any, USER_ID);
+      await service.create(
+        { title: 'First Task', columnId: COLUMN_ID },
+        USER_ID,
+      );
 
       expect(mockPrisma.task.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ position: 1 }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ position: 1 }),
+        }),
       );
     });
 
@@ -221,7 +282,10 @@ describe('TasksService', () => {
       mockPrisma.task.aggregate.mockResolvedValue({ _max: { position: 0 } });
       mockPrisma.task.create.mockResolvedValue(mockTaskWithRelations);
 
-      await service.create({ title: 'Tagged Task', columnId: COLUMN_ID, tagIds: [TAG_ID] } as any, USER_ID);
+      await service.create(
+        { title: 'Tagged Task', columnId: COLUMN_ID, tagIds: [TAG_ID] },
+        USER_ID,
+      );
 
       expect(mockPrisma.task.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -258,7 +322,7 @@ describe('TasksService', () => {
   describe('findOne', () => {
     it('✅ returns task with all relations', async () => {
       mockPrisma.task.findUnique
-        .mockResolvedValueOnce(mockTask)        // findTaskOrThrow
+        .mockResolvedValueOnce(mockTask) // findTaskOrThrow
         .mockResolvedValueOnce(mockTaskWithRelations); // final query
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
 
@@ -270,7 +334,9 @@ describe('TasksService', () => {
     it('❌ throws NotFoundException if task does not exist', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('bad-id', USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id', USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('❌ throws ForbiddenException if user is not a board member', async () => {
@@ -280,7 +346,9 @@ describe('TasksService', () => {
         members: [{ userId: OTHER_USER_ID }],
       });
 
-      await expect(service.findOne(TASK_ID, USER_ID)).rejects.toThrow(ForbiddenException);
+      await expect(service.findOne(TASK_ID, USER_ID)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -290,12 +358,21 @@ describe('TasksService', () => {
     it('✅ updates only the provided fields', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(mockTask);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.task.update.mockResolvedValue({ ...mockTaskWithRelations, title: 'Updated' });
+      mockPrisma.task.update.mockResolvedValue({
+        ...mockTaskWithRelations,
+        title: 'Updated',
+      });
 
-      const result = await service.update(TASK_ID, { title: 'Updated' } as any, USER_ID);
+      const result = await service.update(
+        TASK_ID,
+        { title: 'Updated' },
+        USER_ID,
+      );
 
       expect(mockPrisma.task.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ title: 'Updated' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ title: 'Updated' }),
+        }),
       );
       expect(result.title).toBe('Updated');
     });
@@ -305,7 +382,7 @@ describe('TasksService', () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.task.update.mockResolvedValue(mockTaskWithRelations);
 
-      await service.update(TASK_ID, { tagIds: [TAG_ID] } as any, USER_ID);
+      await service.update(TASK_ID, { tagIds: [TAG_ID] }, USER_ID);
 
       expect(mockPrisma.task.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -321,7 +398,7 @@ describe('TasksService', () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.task.update.mockResolvedValue(mockTaskWithRelations);
 
-      await service.update(TASK_ID, { dueDate: undefined } as any, USER_ID);
+      await service.update(TASK_ID, { dueDate: undefined }, USER_ID);
 
       // dueDate not in dto → not in data patch
       const dataArg = mockPrisma.task.update.mock.calls[0][0].data;
@@ -331,9 +408,9 @@ describe('TasksService', () => {
     it('❌ throws NotFoundException if task does not exist', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(null);
 
-      await expect(service.update('bad-id', { title: 'X' } as any, USER_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.update('bad-id', { title: 'X' } as any, USER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -347,14 +424,18 @@ describe('TasksService', () => {
 
       const result = await service.remove(TASK_ID, USER_ID);
 
-      expect(mockPrisma.task.delete).toHaveBeenCalledWith({ where: { id: TASK_ID } });
+      expect(mockPrisma.task.delete).toHaveBeenCalledWith({
+        where: { id: TASK_ID },
+      });
       expect(result).toEqual({ message: 'Task deleted successfully' });
     });
 
     it('❌ throws NotFoundException if task does not exist', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('bad-id', USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.remove('bad-id', USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -365,7 +446,10 @@ describe('TasksService', () => {
       jest.clearAllMocks();
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(mockTx));
-      mockPrisma.task.findUnique.mockResolvedValue({ ...mockTaskWithRelations, position: 2 });
+      mockPrisma.task.findUnique.mockResolvedValue({
+        ...mockTaskWithRelations,
+        position: 2,
+      });
     });
 
     it('✅ shifts tasks down when moving within same column (old < new)', async () => {
@@ -375,7 +459,11 @@ describe('TasksService', () => {
         .mockResolvedValueOnce(mockTaskWithRelations);
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
 
-      await service.move(TASK_ID, { columnId: COLUMN_ID, position: 4 }, USER_ID);
+      await service.move(
+        TASK_ID,
+        { columnId: COLUMN_ID, position: 4 },
+        USER_ID,
+      );
 
       expect(mockTx.task.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -392,7 +480,11 @@ describe('TasksService', () => {
         .mockResolvedValueOnce(mockTaskWithRelations);
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
 
-      await service.move(TASK_ID, { columnId: COLUMN_ID, position: 1 }, USER_ID);
+      await service.move(
+        TASK_ID,
+        { columnId: COLUMN_ID, position: 1 },
+        USER_ID,
+      );
 
       expect(mockTx.task.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -408,33 +500,50 @@ describe('TasksService', () => {
         .mockResolvedValueOnce(mockTaskWithRelations);
       mockPrisma.column.findUnique.mockResolvedValue(mockOtherColumn);
 
-      await service.move(TASK_ID, { columnId: OTHER_COLUMN_ID, position: 1 }, USER_ID);
+      await service.move(
+        TASK_ID,
+        { columnId: OTHER_COLUMN_ID, position: 1 },
+        USER_ID,
+      );
 
       // Close gap in source column
       expect(mockTx.task.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ columnId: COLUMN_ID, position: { gt: 2 } }),
+          where: expect.objectContaining({
+            columnId: COLUMN_ID,
+            position: { gt: 2 },
+          }),
           data: { position: { decrement: 1 } },
         }),
       );
       // Open space in target column
       expect(mockTx.task.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ columnId: OTHER_COLUMN_ID, position: { gte: 1 } }),
+          where: expect.objectContaining({
+            columnId: OTHER_COLUMN_ID,
+            position: { gte: 1 },
+          }),
           data: { position: { increment: 1 } },
         }),
       );
     });
 
     it('❌ throws BadRequestException if target column belongs to a different board', async () => {
-      mockPrisma.task.findUnique.mockResolvedValueOnce({ ...mockTask, column: mockColumn });
+      mockPrisma.task.findUnique.mockResolvedValueOnce({
+        ...mockTask,
+        column: mockColumn,
+      });
       mockPrisma.column.findUnique.mockResolvedValue({
         ...mockOtherColumn,
         boardId: OTHER_BOARD_ID,
       });
 
       await expect(
-        service.move(TASK_ID, { columnId: OTHER_COLUMN_ID, position: 1 }, USER_ID),
+        service.move(
+          TASK_ID,
+          { columnId: OTHER_COLUMN_ID, position: 1 },
+          USER_ID,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -466,7 +575,9 @@ describe('TasksService', () => {
     it('❌ throws NotFoundException if task does not exist', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(null);
 
-      await expect(service.archive('bad-id', USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.archive('bad-id', USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -474,9 +585,15 @@ describe('TasksService', () => {
 
   describe('unarchive', () => {
     it('✅ sets archived to false', async () => {
-      mockPrisma.task.findUnique.mockResolvedValue({ ...mockTask, archived: true });
+      mockPrisma.task.findUnique.mockResolvedValue({
+        ...mockTask,
+        archived: true,
+      });
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.task.update.mockResolvedValue({ ...mockTask, archived: false });
+      mockPrisma.task.update.mockResolvedValue({
+        ...mockTask,
+        archived: false,
+      });
 
       const result = await service.unarchive(TASK_ID, USER_ID);
 
@@ -489,7 +606,9 @@ describe('TasksService', () => {
     it('❌ throws NotFoundException if task does not exist', async () => {
       mockPrisma.task.findUnique.mockResolvedValue(null);
 
-      await expect(service.unarchive('bad-id', USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.unarchive('bad-id', USER_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

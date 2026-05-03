@@ -1,4 +1,11 @@
-import { jest, describe, it, expect, beforeEach, beforeAll } from '@jest/globals';
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+} from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -120,9 +127,14 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue(mockUserSelect);
 
-      await service.register({ email: 'a@b.com', password: TEST_PASSWORD, name: 'A' });
+      await service.register({
+        email: 'a@b.com',
+        password: TEST_PASSWORD,
+        name: 'A',
+      });
 
-      const savedPassword = mockPrisma.user.create.mock.calls[0][0].data.password;
+      const savedPassword =
+        mockPrisma.user.create.mock.calls[0][0].data.password;
       expect(savedPassword).not.toBe(TEST_PASSWORD);
 
       const matches = await bcrypt.compare(TEST_PASSWORD, savedPassword);
@@ -133,7 +145,11 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(
-        service.register({ email: 'john@example.com', password: TEST_PASSWORD, name: 'John' }),
+        service.register({
+          email: 'john@example.com',
+          password: TEST_PASSWORD,
+          name: 'John',
+        }),
       ).rejects.toThrow(ConflictException);
 
       expect(mockPrisma.user.create).not.toHaveBeenCalled();
@@ -146,7 +162,10 @@ describe('AuthService', () => {
     it('✅ returns tokens for valid credentials', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
-      const result = await service.login({ email: mockUser.email, password: TEST_PASSWORD });
+      const result = await service.login({
+        email: mockUser.email,
+        password: TEST_PASSWORD,
+      });
 
       expect(result).toMatchObject({
         user: expect.objectContaining({ email: mockUser.email }),
@@ -201,21 +220,36 @@ describe('AuthService', () => {
         throw new Error('jwt expired');
       });
 
-      await expect(service.refreshTokens('bad-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshTokens('bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('❌ throws UnauthorizedException when user has no stored refresh token', async () => {
       mockJwtService.verify.mockReturnValue(validPayload);
-      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUser, refreshToken: null });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        refreshToken: null,
+      });
 
-      await expect(service.refreshTokens('mock-jwt-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshTokens('mock-jwt-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('❌ throws UnauthorizedException when tokenVersion does not match', async () => {
-      mockJwtService.verify.mockReturnValue({ ...validPayload, tokenVersion: 99 });
-      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUser, tokenVersion: 0 });
+      mockJwtService.verify.mockReturnValue({
+        ...validPayload,
+        tokenVersion: 99,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        tokenVersion: 0,
+      });
 
-      await expect(service.refreshTokens('mock-jwt-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshTokens('mock-jwt-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('❌ throws UnauthorizedException when refresh token is tampered', async () => {
@@ -223,9 +257,9 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
       // Real bcrypt.compare('tampered', hashedRefreshToken) → false
-      await expect(service.refreshTokens('tampered-refresh-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.refreshTokens('tampered-refresh-token'),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -254,7 +288,9 @@ describe('AuthService', () => {
     it('❌ throws UnauthorizedException when user is not found', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.getMe('bad-id')).rejects.toThrow(UnauthorizedException);
+      await expect(service.getMe('bad-id')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

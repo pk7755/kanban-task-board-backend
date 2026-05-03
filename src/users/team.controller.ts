@@ -34,7 +34,9 @@ export class TeamController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all team members — supports ?search=, ?role=, pagination' })
+  @ApiOperation({
+    summary: 'List all team members — supports ?search=, ?role=, pagination',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
@@ -61,7 +63,11 @@ export class TeamController {
       'Manager can create accounts with any role including MANAGER. ' +
       'Newly created users must change their password on first login (recommended practice).',
   })
-  @ApiResponse({ status: 201, description: 'Team member created', type: UserResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Team member created',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Email already exists' })
   createTeamMember(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
@@ -72,8 +78,15 @@ export class TeamController {
     summary: "Update a team member's name, role, or active status",
     description: 'Manager cannot change their own role through this endpoint.',
   })
-  @ApiResponse({ status: 200, description: 'Team member updated', type: UserResponseDto })
-  @ApiResponse({ status: 403, description: 'Forbidden — attempted self-role change' })
+  @ApiResponse({
+    status: 200,
+    description: 'Team member updated',
+    type: UserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — attempted self-role change',
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   updateTeamMember(
     @Param('id') id: string,
@@ -87,12 +100,23 @@ export class TeamController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Soft-delete a team member (sets isActive = false)',
-    description: 'Hard delete is not allowed. Manager cannot deactivate their own account here.',
+    description:
+      'Hard delete is not allowed. Manager cannot deactivate their own account here.',
   })
-  @ApiResponse({ status: 200, description: 'Team member deactivated', type: UserResponseDto })
-  @ApiResponse({ status: 403, description: 'Forbidden — attempted self-deactivation' })
+  @ApiResponse({
+    status: 200,
+    description: 'Team member deactivated',
+    type: UserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — attempted self-deactivation',
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
-  removeTeamMember(@Param('id') id: string, @CurrentUser() requester: JwtPayload) {
+  removeTeamMember(
+    @Param('id') id: string,
+    @CurrentUser() requester: JwtPayload,
+  ) {
     return this.usersService.removeTeamMember(id, requester.sub);
   }
 

@@ -29,21 +29,27 @@ export class BoardsController {
   constructor(private readonly boardsService: BoardsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all boards the current user owns or is a member of' })
+  @ApiOperation({
+    summary: 'List all boards the current user owns or is a member of',
+  })
   @ApiResponse({ status: 200, description: 'List of boards' })
   findAll(@CurrentUser() user: JwtPayload) {
     return this.boardsService.findAll(user.sub);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new board (creator becomes owner and first member)' })
+  @ApiOperation({
+    summary: 'Create a new board (creator becomes owner and first member)',
+  })
   @ApiResponse({ status: 201, description: 'Board created' })
   create(@Body() dto: CreateBoardDto, @CurrentUser() user: JwtPayload) {
     return this.boardsService.create(dto, user.sub);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get board detail with columns and tasks (members only)' })
+  @ApiOperation({
+    summary: 'Get board detail with columns and tasks (members only)',
+  })
   @ApiResponse({ status: 200, description: 'Board detail' })
   @ApiResponse({ status: 403, description: 'Not a board member' })
   @ApiResponse({ status: 404, description: 'Board not found' })
@@ -56,13 +62,19 @@ export class BoardsController {
   @ApiResponse({ status: 200, description: 'Board updated' })
   @ApiResponse({ status: 403, description: 'Not the board owner' })
   @ApiResponse({ status: 404, description: 'Board not found' })
-  update(@Param('id') id: string, @Body() dto: UpdateBoardDto, @CurrentUser() user: JwtPayload) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateBoardDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     return this.boardsService.update(id, dto, user.sub);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Delete board (owner only, cascades columns/tasks)' })
+  @ApiOperation({
+    summary: 'Delete board (owner only, cascades columns/tasks)',
+  })
   @ApiResponse({ status: 200, description: 'Board deleted' })
   @ApiResponse({ status: 403, description: 'Not the board owner' })
   @ApiResponse({ status: 404, description: 'Board not found' })
@@ -86,9 +98,14 @@ export class BoardsController {
 
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove a member from board (owner only, cannot remove owner)' })
+  @ApiOperation({
+    summary: 'Remove a member from board (owner only, cannot remove owner)',
+  })
   @ApiResponse({ status: 200, description: 'Member removed' })
-  @ApiResponse({ status: 403, description: 'Not the board owner or tried to remove owner' })
+  @ApiResponse({
+    status: 403,
+    description: 'Not the board owner or tried to remove owner',
+  })
   @ApiResponse({ status: 404, description: 'Board or member not found' })
   removeMember(
     @Param('id') id: string,

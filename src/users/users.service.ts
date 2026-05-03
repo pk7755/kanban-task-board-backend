@@ -43,7 +43,9 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateUserDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('A user with this email already exists');
     }
@@ -99,16 +101,27 @@ export class UsersService {
   }
 
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: USER_SELECT });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: USER_SELECT,
+    });
     if (!user) throw new NotFoundException(`User with id "${id}" not found`);
     return user;
   }
 
   findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email }, select: USER_SELECT });
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: USER_SELECT,
+    });
   }
 
-  async update(id: string, dto: UpdateUserDto, requesterId: string, requesterRole: Role) {
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    requesterId: string,
+    requesterRole: Role,
+  ) {
     await this.findOne(id);
 
     if (requesterRole !== Role.MANAGER && requesterId !== id) {
@@ -116,7 +129,9 @@ export class UsersService {
     }
 
     if (dto.email) {
-      const conflict = await this.prisma.user.findUnique({ where: { email: dto.email } });
+      const conflict = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
       if (conflict && conflict.id !== id) {
         throw new ConflictException('A user with this email already exists');
       }
@@ -167,11 +182,17 @@ export class UsersService {
     };
   }
 
-  async updateTeamMember(id: string, dto: UpdateTeamMemberDto, managerId: string) {
+  async updateTeamMember(
+    id: string,
+    dto: UpdateTeamMemberDto,
+    managerId: string,
+  ) {
     await this.findOne(id);
 
     if (id === managerId && dto.role !== undefined) {
-      throw new ForbiddenException('You cannot change your own role through this endpoint');
+      throw new ForbiddenException(
+        'You cannot change your own role through this endpoint',
+      );
     }
 
     return this.prisma.user.update({
@@ -185,7 +206,9 @@ export class UsersService {
     await this.findOne(id);
 
     if (id === managerId) {
-      throw new ForbiddenException('You cannot deactivate your own account through this endpoint');
+      throw new ForbiddenException(
+        'You cannot deactivate your own account through this endpoint',
+      );
     }
 
     return this.prisma.user.update({
