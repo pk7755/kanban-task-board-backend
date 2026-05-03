@@ -13,6 +13,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { UsersModule } from './users/users.module.js';
 import { BoardsModule } from './boards/boards.module.js';
 import { ColumnsModule } from './columns/columns.module.js';
+import { TasksModule } from './tasks/tasks.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ColumnsModule } from './columns/columns.module.js';
     UsersModule,
     BoardsModule,
     ColumnsModule,
+    TasksModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
