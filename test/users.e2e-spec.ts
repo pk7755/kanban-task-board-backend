@@ -30,8 +30,20 @@ const MEMBER_ID = 'member-uuid-1';
 
 // User shapes returned by JwtStrategy (must have id, role, isActive, tokenVersion)
 const jwtUserMap: Record<string, object> = {
-  [MANAGER_ID]: { id: MANAGER_ID, email: 'manager@t.com', role: Role.MANAGER, isActive: true, tokenVersion: 0 },
-  [MEMBER_ID]: { id: MEMBER_ID, email: 'member@t.com', role: Role.TEAM_MEMBER, isActive: true, tokenVersion: 0 },
+  [MANAGER_ID]: {
+    id: MANAGER_ID,
+    email: 'manager@t.com',
+    role: Role.MANAGER,
+    isActive: true,
+    tokenVersion: 0,
+  },
+  [MEMBER_ID]: {
+    id: MEMBER_ID,
+    email: 'member@t.com',
+    role: Role.TEAM_MEMBER,
+    isActive: true,
+    tokenVersion: 0,
+  },
 };
 
 const mockManager = {
@@ -122,10 +134,13 @@ describe('Users API (e2e)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // JwtStrategy calls user.findUnique by id for every protected request
-    mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-      if (where.id && jwtUserMap[where.id]) return Promise.resolve(jwtUserMap[where.id]);
-      return Promise.resolve(null);
-    });
+    mockPrisma.user.findUnique.mockImplementation(
+      ({ where }: { where: { id?: string; email?: string } }) => {
+        if (where.id && jwtUserMap[where.id])
+          return Promise.resolve(jwtUserMap[where.id]);
+        return Promise.resolve(null);
+      },
+    );
     // UsersService.findAll uses $transaction([findMany, count])
     mockPrisma.$transaction.mockImplementation((ops: unknown) =>
       Array.isArray(ops) ? Promise.all(ops) : (ops as () => Promise<unknown>)(),
@@ -135,16 +150,26 @@ describe('Users API (e2e)', () => {
   // ── POST /users ────────────────────────────────────────────────────────────
 
   describe('POST /api/v1/users', () => {
-    const validBody = { email: 'new@example.com', password: 'SecurePass@123', name: 'New User' };
+    const validBody = {
+      email: 'new@example.com',
+      password: 'SecurePass@123',
+      name: 'New User',
+    };
 
     it('✅ MANAGER creates a new user', async () => {
       // JWT call (by id) → handled by smart impl
       // UsersService.create: findUnique(email) → null (not taken), then create
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        return Promise.resolve(null); // email not taken
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          return Promise.resolve(null); // email not taken
+        },
+      );
+      mockPrisma.user.create.mockResolvedValue({
+        ...mockMember,
+        email: 'new@example.com',
+        name: 'New User',
       });
-      mockPrisma.user.create.mockResolvedValue({ ...mockMember, email: 'new@example.com', name: 'New User' });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users')
@@ -164,10 +189,12 @@ describe('Users API (e2e)', () => {
     });
 
     it('❌ returns 409 when email already exists', async () => {
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        return Promise.resolve(mockMember); // email conflict
-      });
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          return Promise.resolve(mockMember); // email conflict
+        },
+      );
 
       await request(app.getHttpServer())
         .post('/api/v1/users')
@@ -185,7 +212,10 @@ describe('Users API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).post('/api/v1/users').send(validBody).expect(401);
+      await request(app.getHttpServer())
+        .post('/api/v1/users')
+        .send(validBody)
+        .expect(401);
     });
   });
 
@@ -238,11 +268,14 @@ describe('Users API (e2e)', () => {
   describe('GET /api/v1/users/by-email', () => {
     it('✅ returns user for a valid email', async () => {
       // JWT call (by id) handled by smart impl; service findByEmail (by email) returns mockMember
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        if (where.email === mockMember.email) return Promise.resolve(mockMember);
-        return Promise.resolve(null);
-      });
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          if (where.email === mockMember.email)
+            return Promise.resolve(mockMember);
+          return Promise.resolve(null);
+        },
+      );
 
       const res = await request(app.getHttpServer())
         .get('/api/v1/users/by-email')
@@ -277,11 +310,14 @@ describe('Users API (e2e)', () => {
   describe('GET /api/v1/users/:id', () => {
     it('✅ returns a user by ID', async () => {
       // JWT call and service findOne both use where.id — smart impl returns mockMember for MEMBER_ID
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
-        if (where.id === MEMBER_ID) return Promise.resolve(mockMember);
-        if (where.id && jwtUserMap[where.id]) return Promise.resolve(jwtUserMap[where.id]);
-        return Promise.resolve(null);
-      });
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string } }) => {
+          if (where.id === MEMBER_ID) return Promise.resolve(mockMember);
+          if (where.id && jwtUserMap[where.id])
+            return Promise.resolve(jwtUserMap[where.id]);
+          return Promise.resolve(null);
+        },
+      );
 
       const res = await request(app.getHttpServer())
         .get(`/api/v1/users/${MEMBER_ID}`)
@@ -300,7 +336,9 @@ describe('Users API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).get(`/api/v1/users/${MEMBER_ID}`).expect(401);
+      await request(app.getHttpServer())
+        .get(`/api/v1/users/${MEMBER_ID}`)
+        .expect(401);
     });
   });
 
@@ -309,11 +347,16 @@ describe('Users API (e2e)', () => {
   describe('PATCH /api/v1/users/me', () => {
     it('✅ updates own profile', async () => {
       // JWT call + service findOne (both by id) + service update
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        return Promise.resolve(null);
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          return Promise.resolve(null);
+        },
+      );
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockMember,
+        name: 'Updated',
       });
-      mockPrisma.user.update.mockResolvedValue({ ...mockMember, name: 'Updated' });
 
       const res = await request(app.getHttpServer())
         .patch('/api/v1/users/me')
@@ -326,11 +369,14 @@ describe('Users API (e2e)', () => {
 
     it('❌ returns 409 when new email already taken', async () => {
       // JWT call → memberJwt; service findOne → mockMember; email conflict check → mockManager
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        if (where.email === mockManager.email) return Promise.resolve(mockManager);
-        return Promise.resolve(null);
-      });
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          if (where.email === mockManager.email)
+            return Promise.resolve(mockManager);
+          return Promise.resolve(null);
+        },
+      );
 
       await request(app.getHttpServer())
         .patch('/api/v1/users/me')

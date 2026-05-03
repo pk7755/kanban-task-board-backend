@@ -31,14 +31,14 @@ describe('AppController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
     await app.init();
   });
 
   it('/api/v1/health (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/api/v1/health')
-      .expect(200);
+    return request(app.getHttpServer()).get('/api/v1/health').expect(200);
   });
 
   afterEach(async () => {

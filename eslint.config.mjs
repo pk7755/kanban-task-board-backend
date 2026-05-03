@@ -19,7 +19,7 @@ export default tseslint.config(
       },
       sourceType: 'commonjs',
       parserOptions: {
-        projectService: true,
+        project: ['./tsconfig.json', './tsconfig.spec.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -43,6 +43,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
 );

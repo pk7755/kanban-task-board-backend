@@ -32,8 +32,20 @@ const COLUMN_ID = 'col-uuid-1';
 const COLUMN_ID_2 = 'col-uuid-2';
 
 const jwtUserMap: Record<string, object> = {
-  [OWNER_ID]: { id: OWNER_ID, email: 'owner@t.com', role: Role.MANAGER, isActive: true, tokenVersion: 0 },
-  [OTHER_ID]: { id: OTHER_ID, email: 'other@t.com', role: Role.TEAM_MEMBER, isActive: true, tokenVersion: 0 },
+  [OWNER_ID]: {
+    id: OWNER_ID,
+    email: 'owner@t.com',
+    role: Role.MANAGER,
+    isActive: true,
+    tokenVersion: 0,
+  },
+  [OTHER_ID]: {
+    id: OTHER_ID,
+    email: 'other@t.com',
+    role: Role.TEAM_MEMBER,
+    isActive: true,
+    tokenVersion: 0,
+  },
 };
 
 const mockBoard = {
@@ -83,7 +95,11 @@ const mockPrisma = {
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
-function signToken(jwtService: JwtService, sub: string, role = Role.MANAGER): string {
+function signToken(
+  jwtService: JwtService,
+  sub: string,
+  role = Role.MANAGER,
+): string {
   return jwtService.sign(
     { sub, email: `${sub}@test.com`, role, tokenVersion: 0 },
     { secret: process.env['JWT_SECRET'], expiresIn: '1h' },
@@ -130,10 +146,13 @@ describe('Columns API (e2e)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // JwtStrategy calls user.findUnique(id) for every protected request — return right user by id
-    mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string } }) => {
-      if (where.id && jwtUserMap[where.id]) return Promise.resolve(jwtUserMap[where.id]);
-      return Promise.resolve(null);
-    });
+    mockPrisma.user.findUnique.mockImplementation(
+      ({ where }: { where: { id?: string } }) => {
+        if (where.id && jwtUserMap[where.id])
+          return Promise.resolve(jwtUserMap[where.id]);
+        return Promise.resolve(null);
+      },
+    );
     mockPrisma.$transaction.mockImplementation((ops: unknown) =>
       Array.isArray(ops) ? Promise.all(ops) : (ops as () => Promise<unknown>)(),
     );
@@ -158,8 +177,13 @@ describe('Columns API (e2e)', () => {
 
     it('✅ creates first column with position 1 when board has no columns', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.column.aggregate.mockResolvedValue({ _max: { position: null } });
-      mockPrisma.column.create.mockResolvedValue({ ...mockColumn, position: 1 });
+      mockPrisma.column.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
+      mockPrisma.column.create.mockResolvedValue({
+        ...mockColumn,
+        position: 1,
+      });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/columns')
@@ -235,7 +259,9 @@ describe('Columns API (e2e)', () => {
         .send(reorderBody)
         .expect(200);
 
-      expect(res.body.data).toMatchObject({ message: expect.stringContaining('reordered') });
+      expect(res.body.data).toMatchObject({
+        message: expect.stringContaining('reordered'),
+      });
     });
 
     it('❌ returns 400 for an empty array', async () => {
@@ -253,7 +279,10 @@ describe('Columns API (e2e)', () => {
       await request(app.getHttpServer())
         .patch('/api/v1/columns/reorder')
         .set('Authorization', `Bearer ${ownerToken}`)
-        .send([{ id: COLUMN_ID, position: 1 }, { id: COLUMN_ID, position: 2 }])
+        .send([
+          { id: COLUMN_ID, position: 1 },
+          { id: COLUMN_ID, position: 2 },
+        ])
         .expect(400);
     });
 
@@ -263,7 +292,10 @@ describe('Columns API (e2e)', () => {
       await request(app.getHttpServer())
         .patch('/api/v1/columns/reorder')
         .set('Authorization', `Bearer ${ownerToken}`)
-        .send([{ id: COLUMN_ID, position: 1 }, { id: 'ghost-id', position: 2 }])
+        .send([
+          { id: COLUMN_ID, position: 1 },
+          { id: 'ghost-id', position: 2 },
+        ])
         .expect(404);
     });
 
@@ -292,7 +324,10 @@ describe('Columns API (e2e)', () => {
     it('✅ owner updates a column name', async () => {
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.column.update.mockResolvedValue({ ...mockColumn, name: 'Done' });
+      mockPrisma.column.update.mockResolvedValue({
+        ...mockColumn,
+        name: 'Done',
+      });
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/columns/${COLUMN_ID}`)
@@ -306,7 +341,10 @@ describe('Columns API (e2e)', () => {
     it('✅ owner updates a column color', async () => {
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.column.update.mockResolvedValue({ ...mockColumn, color: '#00FF00' });
+      mockPrisma.column.update.mockResolvedValue({
+        ...mockColumn,
+        color: '#00FF00',
+      });
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/columns/${COLUMN_ID}`)
@@ -359,7 +397,9 @@ describe('Columns API (e2e)', () => {
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(200);
 
-      expect(res.body.data).toMatchObject({ message: expect.stringContaining('deleted') });
+      expect(res.body.data).toMatchObject({
+        message: expect.stringContaining('deleted'),
+      });
     });
 
     it('❌ returns 403 when a non-owner tries to delete', async () => {

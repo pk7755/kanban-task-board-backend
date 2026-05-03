@@ -31,9 +31,27 @@ const OTHER_ID = 'other-uuid-1';
 const BOARD_ID = 'board-uuid-1';
 
 const jwtUserMap: Record<string, object> = {
-  [OWNER_ID]: { id: OWNER_ID, email: 'owner@t.com', role: Role.MANAGER, isActive: true, tokenVersion: 0 },
-  [MEMBER_ID]: { id: MEMBER_ID, email: 'member@t.com', role: Role.TEAM_MEMBER, isActive: true, tokenVersion: 0 },
-  [OTHER_ID]: { id: OTHER_ID, email: 'other@t.com', role: Role.TEAM_MEMBER, isActive: true, tokenVersion: 0 },
+  [OWNER_ID]: {
+    id: OWNER_ID,
+    email: 'owner@t.com',
+    role: Role.MANAGER,
+    isActive: true,
+    tokenVersion: 0,
+  },
+  [MEMBER_ID]: {
+    id: MEMBER_ID,
+    email: 'member@t.com',
+    role: Role.TEAM_MEMBER,
+    isActive: true,
+    tokenVersion: 0,
+  },
+  [OTHER_ID]: {
+    id: OTHER_ID,
+    email: 'other@t.com',
+    role: Role.TEAM_MEMBER,
+    isActive: true,
+    tokenVersion: 0,
+  },
 };
 
 const mockMemberUser = {
@@ -78,7 +96,11 @@ const mockPrisma = {
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
-function signToken(jwtService: JwtService, sub: string, role = Role.MANAGER): string {
+function signToken(
+  jwtService: JwtService,
+  sub: string,
+  role = Role.MANAGER,
+): string {
   return jwtService.sign(
     { sub, email: `${sub}@test.com`, role, tokenVersion: 0 },
     { secret: process.env['JWT_SECRET'], expiresIn: '1h' },
@@ -127,10 +149,13 @@ describe('Boards API (e2e)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Smart mock: JwtStrategy calls user.findUnique by id for every protected request
-    mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-      if (where.id && jwtUserMap[where.id]) return Promise.resolve(jwtUserMap[where.id]);
-      return Promise.resolve(null);
-    });
+    mockPrisma.user.findUnique.mockImplementation(
+      ({ where }: { where: { id?: string; email?: string } }) => {
+        if (where.id && jwtUserMap[where.id])
+          return Promise.resolve(jwtUserMap[where.id]);
+        return Promise.resolve(null);
+      },
+    );
   });
 
   // ── GET /boards ────────────────────────────────────────────────────────────
@@ -210,8 +235,24 @@ describe('Boards API (e2e)', () => {
       mockPrisma.board.findUnique.mockResolvedValue({
         ...mockBoard,
         members: [
-          { userId: OWNER_ID, user: { id: OWNER_ID, name: 'Owner', email: 'o@t.com', avatarUrl: null } },
-          { userId: MEMBER_ID, user: { id: MEMBER_ID, name: 'Member', email: 'm@t.com', avatarUrl: null } },
+          {
+            userId: OWNER_ID,
+            user: {
+              id: OWNER_ID,
+              name: 'Owner',
+              email: 'o@t.com',
+              avatarUrl: null,
+            },
+          },
+          {
+            userId: MEMBER_ID,
+            user: {
+              id: MEMBER_ID,
+              name: 'Member',
+              email: 'm@t.com',
+              avatarUrl: null,
+            },
+          },
         ],
         columns: [],
       });
@@ -225,7 +266,10 @@ describe('Boards API (e2e)', () => {
     });
 
     it('❌ returns 403 for a non-member', async () => {
-      mockPrisma.board.findUnique.mockResolvedValue({ ...mockBoard, columns: [] }); // only OWNER_ID in members
+      mockPrisma.board.findUnique.mockResolvedValue({
+        ...mockBoard,
+        columns: [],
+      }); // only OWNER_ID in members
 
       await request(app.getHttpServer())
         .get(`/api/v1/boards/${BOARD_ID}`)
@@ -243,7 +287,9 @@ describe('Boards API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).get(`/api/v1/boards/${BOARD_ID}`).expect(401);
+      await request(app.getHttpServer())
+        .get(`/api/v1/boards/${BOARD_ID}`)
+        .expect(401);
     });
   });
 
@@ -252,7 +298,10 @@ describe('Boards API (e2e)', () => {
   describe('PATCH /api/v1/boards/:id', () => {
     it('✅ owner renames the board', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.board.update.mockResolvedValue({ ...mockBoard, name: 'Renamed' });
+      mockPrisma.board.update.mockResolvedValue({
+        ...mockBoard,
+        name: 'Renamed',
+      });
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/boards/${BOARD_ID}`)
@@ -323,7 +372,9 @@ describe('Boards API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).delete(`/api/v1/boards/${BOARD_ID}`).expect(401);
+      await request(app.getHttpServer())
+        .delete(`/api/v1/boards/${BOARD_ID}`)
+        .expect(401);
     });
   });
 
@@ -333,11 +384,14 @@ describe('Boards API (e2e)', () => {
     it('✅ owner adds a new member by email', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       // JWT call uses where.id; addMember service uses where.email
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        if (where.email === mockMemberUser.email) return Promise.resolve(mockMemberUser);
-        return Promise.resolve(null);
-      });
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          if (where.email === mockMemberUser.email)
+            return Promise.resolve(mockMemberUser);
+          return Promise.resolve(null);
+        },
+      );
       mockPrisma.boardMember.create.mockResolvedValue({});
 
       const res = await request(app.getHttpServer())
@@ -346,7 +400,9 @@ describe('Boards API (e2e)', () => {
         .send({ email: mockMemberUser.email })
         .expect(201);
 
-      expect(res.body.data).toMatchObject({ message: expect.stringContaining('added') });
+      expect(res.body.data).toMatchObject({
+        message: expect.stringContaining('added'),
+      });
     });
 
     it('❌ returns 409 when user is already a member', async () => {
@@ -354,10 +410,12 @@ describe('Boards API (e2e)', () => {
         ...mockBoard,
         members: [{ userId: OWNER_ID }, { userId: MEMBER_ID }],
       });
-      mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-        if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
-        return Promise.resolve(mockMemberUser);
-      });
+      mockPrisma.user.findUnique.mockImplementation(
+        ({ where }: { where: { id?: string; email?: string } }) => {
+          if (where.id) return Promise.resolve(jwtUserMap[where.id] ?? null);
+          return Promise.resolve(mockMemberUser);
+        },
+      );
 
       await request(app.getHttpServer())
         .post(`/api/v1/boards/${BOARD_ID}/members`)
@@ -412,7 +470,9 @@ describe('Boards API (e2e)', () => {
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(200);
 
-      expect(res.body.data).toMatchObject({ message: expect.stringContaining('removed') });
+      expect(res.body.data).toMatchObject({
+        message: expect.stringContaining('removed'),
+      });
     });
 
     it('❌ returns 403 when trying to remove the owner', async () => {

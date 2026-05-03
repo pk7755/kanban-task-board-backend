@@ -62,7 +62,11 @@ const mockPrisma = {
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
-function signToken(jwtService: JwtService, sub: string, role = Role.TEAM_MEMBER): string {
+function signToken(
+  jwtService: JwtService,
+  sub: string,
+  role = Role.TEAM_MEMBER,
+): string {
   return jwtService.sign(
     { sub, email: `${sub}@test.com`, role, tokenVersion: 0 },
     { secret: process.env['JWT_SECRET'], expiresIn: '1h' },
@@ -109,22 +113,34 @@ describe('Auth API (e2e)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // JwtStrategy calls user.findUnique for every protected request — return valid user by id
-    mockPrisma.user.findUnique.mockImplementation(({ where }: { where: { id?: string; email?: string } }) => {
-      if (where.id === USER_ID) return Promise.resolve(jwtUser);
-      return Promise.resolve(null);
-    });
+    mockPrisma.user.findUnique.mockImplementation(
+      ({ where }: { where: { id?: string; email?: string } }) => {
+        if (where.id === USER_ID) return Promise.resolve(jwtUser);
+        return Promise.resolve(null);
+      },
+    );
     // generateTokens (called after login/register/refresh) always updates the refresh token hash
-    mockPrisma.user.update.mockResolvedValue({ ...jwtUser, refreshToken: 'hashed' });
+    mockPrisma.user.update.mockResolvedValue({
+      ...jwtUser,
+      refreshToken: 'hashed',
+    });
   });
 
   // ── POST /auth/register ────────────────────────────────────────────────────
 
   describe('POST /api/v1/auth/register', () => {
-    const validBody = { email: TEST_EMAIL, password: TEST_PASSWORD, name: 'John Doe' };
+    const validBody = {
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+      name: 'John Doe',
+    };
 
     it('✅ registers a new user and returns tokens', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null); // no email conflict
-      mockPrisma.user.create.mockResolvedValue({ ...baseUser, password: hashedPassword });
+      mockPrisma.user.create.mockResolvedValue({
+        ...baseUser,
+        password: hashedPassword,
+      });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/register')
@@ -180,7 +196,10 @@ describe('Auth API (e2e)', () => {
 
   describe('POST /api/v1/auth/login', () => {
     it('✅ logs in and returns tokens', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ ...jwtUser, password: hashedPassword });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...jwtUser,
+        password: hashedPassword,
+      });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
@@ -194,7 +213,10 @@ describe('Auth API (e2e)', () => {
     });
 
     it('❌ returns 401 for wrong password', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ ...jwtUser, password: hashedPassword });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...jwtUser,
+        password: hashedPassword,
+      });
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
@@ -258,7 +280,9 @@ describe('Auth API (e2e)', () => {
     });
 
     it('🔐 returns 401 without token', async () => {
-      await request(app.getHttpServer()).post('/api/v1/auth/logout').expect(401);
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .expect(401);
     });
   });
 
@@ -267,12 +291,20 @@ describe('Auth API (e2e)', () => {
   describe('POST /api/v1/auth/refresh', () => {
     it('✅ issues a new token pair with a valid refresh token', async () => {
       const refreshToken = jwtService.sign(
-        { sub: USER_ID, email: TEST_EMAIL, role: Role.TEAM_MEMBER, tokenVersion: 0 },
+        {
+          sub: USER_ID,
+          email: TEST_EMAIL,
+          role: Role.TEAM_MEMBER,
+          tokenVersion: 0,
+        },
         { secret: process.env['JWT_REFRESH_SECRET'], expiresIn: '7d' },
       );
       const hashedRefresh = await bcrypt.hash(refreshToken, 10);
 
-      mockPrisma.user.findUnique.mockResolvedValue({ ...jwtUser, refreshToken: hashedRefresh });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...jwtUser,
+        refreshToken: hashedRefresh,
+      });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
