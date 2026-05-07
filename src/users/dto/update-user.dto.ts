@@ -3,7 +3,6 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  IsUrl,
   MinLength,
 } from 'class-validator';
 
@@ -19,8 +18,12 @@ export class UpdateUserDto {
   @MinLength(2)
   name?: string;
 
-  @ApiProperty({ example: 'https://example.com/avatar.png', required: false })
+  @ApiProperty({
+    example: 'https://example.com/avatar.png',
+    description: 'Avatar URL or base64 data URL',
+    required: false,
+  })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   avatarUrl?: string;
 }
