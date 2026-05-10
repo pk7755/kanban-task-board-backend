@@ -11,6 +11,15 @@ import { UpdateTaskDto } from './dto/update-task.dto.js';
 import { MoveTaskDto } from './dto/move-task.dto.js';
 import { Role, AuditAction } from '../../generated/prisma/enums.js';
 
+/** Shared Prisma include for all task responses — always returns full tag objects. */
+const TASK_INCLUDE = {
+  assignee: {
+    select: { id: true, name: true, email: true, avatarUrl: true },
+  },
+  tags: { include: { tag: true } },
+  checklistItems: { orderBy: { position: 'asc' as const } },
+} as const;
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -102,13 +111,7 @@ export class TasksService {
           tags: { create: dto.tagIds.map((tagId) => ({ tagId })) },
         }),
       },
-      include: {
-        assignee: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-        tags: { include: { tag: true } },
-        checklistItems: { orderBy: { position: 'asc' } },
-      },
+      include: TASK_INCLUDE,
     });
   }
 
@@ -159,13 +162,7 @@ export class TasksService {
           },
         }),
       },
-      include: {
-        assignee: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-        tags: { include: { tag: true } },
-        checklistItems: { orderBy: { position: 'asc' } },
-      },
+      include: TASK_INCLUDE,
     });
 
     if (dto.assigneeId !== undefined && dto.assigneeId !== task.assigneeId) {
@@ -245,13 +242,7 @@ export class TasksService {
 
     return this.prisma.task.findUnique({
       where: { id },
-      include: {
-        assignee: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-        tags: { include: { tag: true } },
-        checklistItems: { orderBy: { position: 'asc' } },
-      },
+      include: TASK_INCLUDE,
     });
   }
 
@@ -275,5 +266,39 @@ export class TasksService {
 
     await this.prisma.task.update({ where: { id }, data: { archived: false } });
     return { message: 'Task unarchived successfully' };
+  }
+
+  // ── POST /tasks/:id/tags/:tagId ───────────────────────────────────────────────
+
+  async attachTag(taskId: string, tagId: string, userId: string) {
+    const task = await this.findTaskOrThrow(taskId);
+    await this.assertBoardMember(task.column.boardId, userId);
+
+    // Validate the tag belongs to the same board
+    const tag = await this.prisma.tag.findUnique({ where: { id: tagId } });
+    if (!tag) throw new NotFoundException(`Tag "${tagId}" not found`);
+    if (tag.boardId !== task.column.boardId)
+      throw new BadRequestException('Tag does not belong to this board');
+
+    // Idempotent upsert — safe to call even if already attached
+    await this.prisma.taskTag.upsert({
+      where: { taskId_tagId: { taskId, tagId } },
+      create: { taskId, tagId },
+      update: {},
+    });
+
+    return this.prisma.task.findUnique({ where: { id: taskId }, include: TASK_INCLUDE });
+  }
+
+  // ── DELETE /tasks/:id/tags/:tagId ─────────────────────────────────────────────
+
+  async detachTag(taskId: string, tagId: string, userId: string) {
+    const task = await this.findTaskOrThrow(taskId);
+    await this.assertBoardMember(task.column.boardId, userId);
+
+    // Remove ONLY the mapping — the tag itself is preserved globally
+    await this.prisma.taskTag.deleteMany({ where: { taskId, tagId } });
+
+    return this.prisma.task.findUnique({ where: { id: taskId }, include: TASK_INCLUDE });
   }
 }

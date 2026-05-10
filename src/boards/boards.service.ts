@@ -99,23 +99,19 @@ export class BoardsService {
           },
           orderBy: { joinedAt: 'asc' },
         },
+        tags: {
+          select: { id: true, name: true, color: true },
+          orderBy: { name: 'asc' },
+        },
         columns: {
           orderBy: { position: 'asc' },
           include: {
             tasks: {
               where: { archived: false },
               orderBy: { position: 'asc' },
-              select: {
-                id: true,
-                title: true,
-                description: true,
-                priority: true,
-                position: true,
-                assigneeId: true,
-                archived: true,
-                dueDate: true,
-                createdAt: true,
-                updatedAt: true,
+              include: {
+                tags: { include: { tag: true } },
+                checklistItems: { orderBy: { position: 'asc' } },
               },
             },
           },
@@ -132,6 +128,7 @@ export class BoardsService {
       ownerId: board.ownerId,
       memberCount: board.members.length,
       createdAt: board.createdAt,
+      tags: board.tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
       columns: board.columns.map((col) => ({
         id: col.id,
         name: col.name,

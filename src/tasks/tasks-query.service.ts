@@ -116,7 +116,7 @@ export class TasksQueryService {
             select: { id: true, name: true, email: true, avatarUrl: true },
           },
           tags: { include: { tag: true } },
-          _count: { select: { checklistItems: true } },
+          checklistItems: { orderBy: { position: 'asc' } },
         },
       }),
     ]);
