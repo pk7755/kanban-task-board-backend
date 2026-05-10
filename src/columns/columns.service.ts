@@ -41,6 +41,12 @@ export class ColumnsService {
     const board = await this.findBoardOrThrow(dto.boardId);
     this.assertOwner(board, userId);
 
+    const existingColumn = await this.prisma.column.findFirst({
+      where: { boardId: dto.boardId, name: dto.name },
+    });
+    if (existingColumn)
+      throw new BadRequestException(`Column with name "${dto.name}" already exists in this board`);
+
     const maxPos = await this.prisma.column.aggregate({
       where: { boardId: dto.boardId },
       _max: { position: true },

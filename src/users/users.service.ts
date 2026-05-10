@@ -22,6 +22,7 @@ const USER_SELECT = {
   role: true,
   avatarUrl: true,
   isActive: true,
+  isDeleted: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -82,30 +83,19 @@ export class UsersService {
   }
 
   async findAll(query: FindAllUsersQuery = {}) {
-    const where = (query.search ?? '').trim()
-      ? {
-          OR: [
-            {
-              email: {
-                contains: query.search!.trim(),
-                mode: 'insensitive' as const,
-              },
-            },
-            {
-              name: {
-                contains: query.search!.trim(),
-                mode: 'insensitive' as const,
-              },
-            },
-          ],
-        }
-      : {};
+    const where: Record<string, unknown> = { isDeleted: false }
+    if ((query.search ?? '').trim()) {
+      where['OR'] = [
+        { email: { contains: query.search!.trim(), mode: 'insensitive' as const } },
+        { name: { contains: query.search!.trim(), mode: 'insensitive' as const } },
+      ]
+    }
     return this.paginateUsers(where, query);
   }
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: { id, isDeleted: false },
       select: USER_SELECT,
     });
     if (!user) throw new NotFoundException(`User with id "${id}" not found`);
@@ -113,8 +103,8 @@ export class UsersService {
   }
 
   findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
+    return this.prisma.user.findFirst({
+      where: { email, isDeleted: false },
       select: USER_SELECT,
     });
   }
@@ -148,7 +138,7 @@ export class UsersService {
   }
 
   async findTeam(query: FindTeamQuery = {}) {
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { isDeleted: false };
     if (query.role) where['role'] = query.role;
     if ((query.search ?? '').trim()) {
       where['OR'] = [
@@ -212,14 +202,20 @@ export class UsersService {
 
     if (id === managerId) {
       throw new ForbiddenException(
-        'You cannot deactivate your own account through this endpoint',
+        'You cannot delete your own account through this endpoint',
       );
     }
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { isActive: false },
+      data: { isDeleted: true, isActive: false, refreshToken: null },
       select: USER_SELECT,
+    });
+
+    // Unassign all tasks belonging to this deleted user
+    await this.prisma.task.updateMany({
+      where: { assigneeId: id },
+      data: { assigneeId: null },
     });
 
     await this.audit.log(managerId, AuditAction.USER_DEACTIVATED, 'User', id);

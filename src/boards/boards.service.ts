@@ -45,7 +45,13 @@ export class BoardsService {
         OR: [{ ownerId: userId }, { members: { some: { userId } } }],
       },
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { members: true } } },
+      include: {
+        _count: {
+          select: {
+            members: { where: { user: { isDeleted: false } } },
+          },
+        },
+      },
     });
 
     return boards.map((b) => ({
@@ -85,9 +91,10 @@ export class BoardsService {
       where: { id },
       include: {
         members: {
+          where: { user: { isDeleted: false } },
           include: {
             user: {
-              select: { id: true, name: true, email: true, avatarUrl: true },
+              select: { id: true, name: true, email: true, avatarUrl: true, isActive: true },
             },
           },
           orderBy: { joinedAt: 'asc' },
@@ -137,6 +144,7 @@ export class BoardsService {
         name: m.user.name,
         email: m.user.email,
         avatarUrl: m.user.avatarUrl,
+        isActive: m.user.isActive,
         joinedAt: m.joinedAt,
       })),
     };
@@ -179,10 +187,13 @@ export class BoardsService {
     const board = await this.findBoardOrThrow(boardId);
     this.assertOwner(board, requesterId);
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findFirst({
+      where: { email, isDeleted: false },
+    });
     if (!user)
       throw new NotFoundException(`No user found with email "${email}"`);
-
+    if (!user.isActive)
+      throw new ConflictException('Cannot add an inactive user to a board');
     const alreadyMember = board.members.some((m) => m.userId === user.id);
     if (alreadyMember)
       throw new ConflictException('User is already a member of this board');

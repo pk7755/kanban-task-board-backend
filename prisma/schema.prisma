@@ -42,6 +42,7 @@ model User {
   avatarUrl    String?
   role         Role     @default(MANAGER)
   isActive     Boolean  @default(true)
+  isDeleted    Boolean  @default(false)
   refreshToken  String?
   tokenVersion  Int      @default(0)
   createdAt     DateTime @default(now())

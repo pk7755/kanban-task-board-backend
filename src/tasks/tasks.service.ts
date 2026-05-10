@@ -40,6 +40,20 @@ export class TasksService {
     return board;
   }
 
+  /** Validate that the intended assignee is an active, non-deleted board member. */
+  private async assertAssigneeBoardMember(boardId: string, assigneeId: string | null | undefined) {
+    if (!assigneeId) return; // unassigned is always valid
+    const membership = await this.prisma.boardMember.findUnique({
+      where: { boardId_userId: { boardId, userId: assigneeId } },
+      include: { user: { select: { isDeleted: true, isActive: true } } },
+    });
+    if (!membership || membership.user.isDeleted || !membership.user.isActive) {
+      throw new BadRequestException(
+        'Assignee must be an active member of this board',
+      );
+    }
+  }
+
   private async findColumnOrThrow(id: string) {
     const column = await this.prisma.column.findUnique({ where: { id } });
     if (!column) throw new NotFoundException(`Column "${id}" not found`);
@@ -63,6 +77,11 @@ export class TasksService {
 
     // Team members can only assign tasks to themselves
     const assigneeId = userRole === Role.TEAM_MEMBER ? userId : dto.assigneeId;
+
+    // Managers: validate the chosen assignee is a board member
+    if (userRole !== Role.TEAM_MEMBER) {
+      await this.assertAssigneeBoardMember(column.boardId, assigneeId);
+    }
 
     const maxPos = await this.prisma.task.aggregate({
       where: { columnId: dto.columnId },
@@ -88,6 +107,7 @@ export class TasksService {
           select: { id: true, name: true, email: true, avatarUrl: true },
         },
         tags: { include: { tag: true } },
+        checklistItems: { orderBy: { position: 'asc' } },
       },
     });
   }
@@ -102,6 +122,11 @@ export class TasksService {
     // Team members cannot reassign tasks
     if (userRole === Role.TEAM_MEMBER && dto.assigneeId !== undefined)
       throw new ForbiddenException('Team members cannot reassign tasks');
+
+    // Managers: validate the chosen assignee is a board member
+    if (userRole !== Role.TEAM_MEMBER && dto.assigneeId !== undefined) {
+      await this.assertAssigneeBoardMember(task.column.boardId, dto.assigneeId);
+    }
 
     if (dto.columnId && dto.columnId !== task.columnId)
       await this.findColumnOrThrow(dto.columnId);
@@ -123,12 +148,23 @@ export class TasksService {
             create: dto.tagIds.map((tagId) => ({ tagId })),
           },
         }),
+        ...(dto.checklistItems !== undefined && {
+          checklistItems: {
+            deleteMany: {},
+            create: dto.checklistItems.map((item, index) => ({
+              text: item.text,
+              done: item.done,
+              position: item.position ?? index,
+            })),
+          },
+        }),
       },
       include: {
         assignee: {
           select: { id: true, name: true, email: true, avatarUrl: true },
         },
         tags: { include: { tag: true } },
+        checklistItems: { orderBy: { position: 'asc' } },
       },
     });
 
@@ -214,6 +250,7 @@ export class TasksService {
           select: { id: true, name: true, email: true, avatarUrl: true },
         },
         tags: { include: { tag: true } },
+        checklistItems: { orderBy: { position: 'asc' } },
       },
     });
   }

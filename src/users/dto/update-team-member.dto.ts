@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
@@ -14,6 +15,11 @@ export class UpdateTeamMemberDto {
   @IsString()
   @MinLength(2)
   name?: string;
+
+  @ApiProperty({ example: 'jane@example.com', required: false })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @ApiProperty({ enum: Role, required: false })
   @IsOptional()

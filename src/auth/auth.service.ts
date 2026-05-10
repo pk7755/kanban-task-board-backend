@@ -83,7 +83,7 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<AuthResponse> {
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email, isActive: true },
+      where: { email: dto.email, isActive: true, isDeleted: false },
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
@@ -121,7 +121,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub, isActive: true },
+      where: { id: payload.sub, isActive: true, isDeleted: false },
     });
 
     if (!user || !user.refreshToken) {
