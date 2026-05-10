@@ -160,7 +160,10 @@ export class TasksController {
   @Post(':id/tags/:tagId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Attach an existing tag to a task (idempotent)' })
-  @ApiResponse({ status: 200, description: 'Tag attached; returns updated task' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tag attached; returns updated task',
+  })
   @ApiResponse({ status: 400, description: 'Tag belongs to a different board' })
   @ApiResponse({ status: 404, description: 'Task or tag not found' })
   attachTag(
@@ -173,8 +176,13 @@ export class TasksController {
 
   @Delete(':id/tags/:tagId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Detach a tag from a task (tag itself is NOT deleted)' })
-  @ApiResponse({ status: 200, description: 'Tag detached; returns updated task' })
+  @ApiOperation({
+    summary: 'Detach a tag from a task (tag itself is NOT deleted)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tag detached; returns updated task',
+  })
   @ApiResponse({ status: 404, description: 'Task not found' })
   detachTag(
     @Param('id') taskId: string,

@@ -94,7 +94,13 @@ export class BoardsService {
           where: { user: { isDeleted: false } },
           include: {
             user: {
-              select: { id: true, name: true, email: true, avatarUrl: true, isActive: true },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true,
+                isActive: true,
+              },
             },
           },
           orderBy: { joinedAt: 'asc' },

@@ -45,7 +45,9 @@ export class ColumnsService {
       where: { boardId: dto.boardId, name: dto.name },
     });
     if (existingColumn)
-      throw new BadRequestException(`Column with name "${dto.name}" already exists in this board`);
+      throw new BadRequestException(
+        `Column with name "${dto.name}" already exists in this board`,
+      );
 
     const maxPos = await this.prisma.column.aggregate({
       where: { boardId: dto.boardId },

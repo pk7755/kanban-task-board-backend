@@ -50,7 +50,10 @@ export class TasksService {
   }
 
   /** Validate that the intended assignee is an active, non-deleted board member. */
-  private async assertAssigneeBoardMember(boardId: string, assigneeId: string | null | undefined) {
+  private async assertAssigneeBoardMember(
+    boardId: string,
+    assigneeId: string | null | undefined,
+  ) {
     if (!assigneeId) return; // unassigned is always valid
     const membership = await this.prisma.boardMember.findUnique({
       where: { boardId_userId: { boardId, userId: assigneeId } },
@@ -287,7 +290,10 @@ export class TasksService {
       update: {},
     });
 
-    return this.prisma.task.findUnique({ where: { id: taskId }, include: TASK_INCLUDE });
+    return this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: TASK_INCLUDE,
+    });
   }
 
   // ── DELETE /tasks/:id/tags/:tagId ─────────────────────────────────────────────
@@ -299,6 +305,9 @@ export class TasksService {
     // Remove ONLY the mapping — the tag itself is preserved globally
     await this.prisma.taskTag.deleteMany({ where: { taskId, tagId } });
 
-    return this.prisma.task.findUnique({ where: { id: taskId }, include: TASK_INCLUDE });
+    return this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: TASK_INCLUDE,
+    });
   }
 }

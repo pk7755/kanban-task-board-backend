@@ -53,6 +53,7 @@ const mockPrisma = {
   },
   user: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
   },
 };
 
@@ -136,6 +137,7 @@ describe('BoardsService', () => {
     it('✅ returns board detail with columns and members for a board member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue({
         ...mockBoard,
+        tags: [],
         members: [
           {
             userId: OWNER_ID,
@@ -157,6 +159,7 @@ describe('BoardsService', () => {
         id: BOARD_ID,
         columns: [],
         members: expect.any(Array),
+        tags: [],
       });
     });
 
@@ -171,6 +174,7 @@ describe('BoardsService', () => {
     it('❌ throws ForbiddenException when user is not a board member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue({
         ...mockBoard,
+        tags: [],
         members: [{ userId: OWNER_ID, joinedAt: new Date(), user: {} }],
         columns: [],
       });
@@ -256,16 +260,17 @@ describe('BoardsService', () => {
 
   describe('addMember', () => {
     it('✅ adds a new member by email', async () => {
-      mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.user.findUnique.mockResolvedValue(mockMemberUser);
-      // not already a member
-      mockPrisma.board.findUnique.mockResolvedValueOnce({
+      // findBoardOrThrow (first call) — board with only owner
+      mockPrisma.board.findUnique.mockResolvedValue({
         ...mockBoard,
         members: [{ userId: OWNER_ID }],
       });
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
+      // findFirst — user lookup by email
+      mockPrisma.user.findFirst.mockResolvedValue({
         ...mockMemberUser,
         id: OTHER_USER_ID,
+        isActive: true,
+        isDeleted: false,
       });
       mockPrisma.boardMember.create.mockResolvedValue({});
 
@@ -293,7 +298,7 @@ describe('BoardsService', () => {
 
     it('❌ throws NotFoundException when the target user email does not exist', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findFirst.mockResolvedValue(null);
 
       await expect(
         service.addMember(BOARD_ID, 'nobody@example.com', OWNER_ID),
@@ -302,9 +307,11 @@ describe('BoardsService', () => {
 
     it('❌ throws ConflictException when user is already a member', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard); // MEMBER_ID already in members
-      mockPrisma.user.findUnique.mockResolvedValue({
+      mockPrisma.user.findFirst.mockResolvedValue({
         ...mockMemberUser,
         id: MEMBER_ID,
+        isActive: true,
+        isDeleted: false,
       });
 
       await expect(

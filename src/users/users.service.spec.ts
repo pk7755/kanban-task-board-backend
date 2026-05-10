@@ -52,10 +52,14 @@ const mockMember = {
 const mockPrisma = {
   user: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+  },
+  task: {
+    updateMany: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -234,7 +238,7 @@ describe('UsersService', () => {
 
   describe('findByEmail', () => {
     it('✅ returns user when email matches', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(mockMember);
+      mockPrisma.user.findFirst.mockResolvedValue(mockMember);
 
       const result = await service.findByEmail(mockMember.email);
 
@@ -242,7 +246,7 @@ describe('UsersService', () => {
     });
 
     it('✅ returns null when no user matches', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findFirst.mockResolvedValue(null);
 
       const result = await service.findByEmail('no@one.com');
 
@@ -415,12 +419,16 @@ describe('UsersService', () => {
       mockPrisma.user.update.mockResolvedValue({
         ...mockMember,
         isActive: false,
+        isDeleted: true,
       });
+      mockPrisma.task.updateMany.mockResolvedValue({ count: 0 });
 
       await service.removeTeamMember(MEMBER_ID, MANAGER_ID);
 
       expect(mockPrisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { isActive: false } }),
+        expect.objectContaining({
+          data: expect.objectContaining({ isActive: false }),
+        }),
       );
     });
 

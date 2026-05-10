@@ -83,12 +83,22 @@ export class UsersService {
   }
 
   async findAll(query: FindAllUsersQuery = {}) {
-    const where: Record<string, unknown> = { isDeleted: false }
+    const where: Record<string, unknown> = { isDeleted: false };
     if ((query.search ?? '').trim()) {
       where['OR'] = [
-        { email: { contains: query.search!.trim(), mode: 'insensitive' as const } },
-        { name: { contains: query.search!.trim(), mode: 'insensitive' as const } },
-      ]
+        {
+          email: {
+            contains: query.search!.trim(),
+            mode: 'insensitive' as const,
+          },
+        },
+        {
+          name: {
+            contains: query.search!.trim(),
+            mode: 'insensitive' as const,
+          },
+        },
+      ];
     }
     return this.paginateUsers(where, query);
   }

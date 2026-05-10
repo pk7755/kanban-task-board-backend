@@ -49,6 +49,7 @@ const mockColumnB = {
 const mockPrisma = {
   column: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -89,6 +90,7 @@ describe('ColumnsService', () => {
   describe('create', () => {
     it('✅ creates column at position maxPos + 1', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      mockPrisma.column.findFirst.mockResolvedValue(null); // no duplicate name
       mockPrisma.column.aggregate.mockResolvedValue({ _max: { position: 2 } });
       mockPrisma.column.create.mockResolvedValue({
         ...mockColumnA,
@@ -110,6 +112,7 @@ describe('ColumnsService', () => {
 
     it('✅ creates first column at position 1 when board is empty', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      mockPrisma.column.findFirst.mockResolvedValue(null); // no duplicate name
       mockPrisma.column.aggregate.mockResolvedValue({
         _max: { position: null },
       });
@@ -129,6 +132,7 @@ describe('ColumnsService', () => {
 
     it('✅ stores optional color when provided', async () => {
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      mockPrisma.column.findFirst.mockResolvedValue(null); // no duplicate name
       mockPrisma.column.aggregate.mockResolvedValue({ _max: { position: 0 } });
       mockPrisma.column.create.mockResolvedValue({
         ...mockColumnA,
@@ -142,6 +146,15 @@ describe('ColumnsService', () => {
 
       const createData = mockPrisma.column.create.mock.calls[0][0].data;
       expect(createData.color).toBe('#FF5733');
+    });
+
+    it('❌ throws BadRequestException when a column with the same name already exists', async () => {
+      mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      mockPrisma.column.findFirst.mockResolvedValue(mockColumnA); // duplicate found
+
+      await expect(
+        service.create({ name: mockColumnA.name, boardId: BOARD_ID }, OWNER_ID),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('❌ throws NotFoundException when board does not exist', async () => {

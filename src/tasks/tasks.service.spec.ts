@@ -91,6 +91,9 @@ const mockPrisma = {
   },
   board: { findUnique: jest.fn(), findMany: jest.fn() },
   column: { findUnique: jest.fn(), findMany: jest.fn() },
+  boardMember: { findUnique: jest.fn() },
+  tag: { findUnique: jest.fn() },
+  taskTag: { upsert: jest.fn(), deleteMany: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -123,6 +126,11 @@ describe('TasksService (mutations)', () => {
       mockPrisma.column.findUnique.mockResolvedValue(mockColumn);
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
       mockPrisma.task.aggregate.mockResolvedValue({ _max: { position: 3 } });
+      mockPrisma.boardMember.findUnique.mockResolvedValue({
+        userId: OTHER_USER_ID,
+        boardId: BOARD_ID,
+        user: { isDeleted: false, isActive: true },
+      });
       mockPrisma.task.create.mockResolvedValue({
         ...mockTaskWithRelations,
         position: 4,
@@ -342,6 +350,12 @@ describe('TasksService (mutations)', () => {
         assigneeId: USER_ID,
       });
       mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      // assertAssigneeBoardMember — verify new assignee is a board member
+      mockPrisma.boardMember.findUnique.mockResolvedValue({
+        userId: OTHER_USER_ID,
+        boardId: BOARD_ID,
+        user: { isDeleted: false, isActive: true },
+      });
       mockPrisma.task.update.mockResolvedValue(mockTaskWithRelations);
 
       await service.update(
@@ -676,6 +690,97 @@ describe('TasksService (mutations)', () => {
 
       await expect(
         service.unarchive('bad-id', USER_ID, Role.MANAGER),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── attachTag ───────────────────────────────────────────────────────────────
+
+  describe('attachTag', () => {
+    it('✅ attaches a tag to a task (idempotent upsert)', async () => {
+      mockPrisma.task.findUnique
+        .mockResolvedValueOnce({ ...mockTask, column: mockColumn }) // findTaskOrThrow
+        .mockResolvedValueOnce(mockTaskWithRelations); // final findUnique
+      mockPrisma.board.findUnique.mockResolvedValue(mockBoard); // assertBoardMember
+      mockPrisma.tag.findUnique.mockResolvedValue({
+        id: TAG_ID,
+        boardId: BOARD_ID,
+      });
+      mockPrisma.taskTag.upsert.mockResolvedValue({});
+
+      const result = await service.attachTag(TASK_ID, TAG_ID, USER_ID);
+
+      expect(mockPrisma.taskTag.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { taskId_tagId: { taskId: TASK_ID, tagId: TAG_ID } },
+          create: { taskId: TASK_ID, tagId: TAG_ID },
+        }),
+      );
+      expect(result).toBeDefined();
+    });
+
+    it('❌ throws NotFoundException when tag does not exist', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({
+        ...mockTask,
+        column: mockColumn,
+      });
+      mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      mockPrisma.tag.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.attachTag(TASK_ID, 'bad-tag-id', USER_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('❌ throws BadRequestException when tag belongs to a different board', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({
+        ...mockTask,
+        column: mockColumn,
+      });
+      mockPrisma.board.findUnique.mockResolvedValue(mockBoard);
+      mockPrisma.tag.findUnique.mockResolvedValue({
+        id: TAG_ID,
+        boardId: OTHER_BOARD_ID,
+      });
+
+      await expect(service.attachTag(TASK_ID, TAG_ID, USER_ID)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('❌ throws NotFoundException when task does not exist', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.attachTag('bad-task', TAG_ID, USER_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── detachTag ───────────────────────────────────────────────────────────────
+
+  describe('detachTag', () => {
+    it('✅ removes only the task-tag mapping without deleting the tag', async () => {
+      mockPrisma.task.findUnique
+        .mockResolvedValueOnce({ ...mockTask, column: mockColumn }) // findTaskOrThrow
+        .mockResolvedValueOnce(mockTaskWithRelations); // final findUnique
+      mockPrisma.board.findUnique.mockResolvedValue(mockBoard); // assertBoardMember
+      mockPrisma.taskTag.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.detachTag(TASK_ID, TAG_ID, USER_ID);
+
+      expect(mockPrisma.taskTag.deleteMany).toHaveBeenCalledWith({
+        where: { taskId: TASK_ID, tagId: TAG_ID },
+      });
+      // tag itself should NOT be deleted
+      expect(mockPrisma.tag.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('❌ throws NotFoundException when task does not exist', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.detachTag('bad-task', TAG_ID, USER_ID),
       ).rejects.toThrow(NotFoundException);
     });
   });
